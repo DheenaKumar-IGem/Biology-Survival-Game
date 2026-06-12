@@ -36,6 +36,9 @@ void main() {
     expect(find.text('Character Frame'), findsOneWidget);
     expect(find.text('Research Points'), findsOneWidget);
     expect(find.text('Biology Resource Pack'), findsOneWidget);
+    expect(find.text('Performance Settings'), findsOneWidget);
+    expect(find.text('Graphics Quality'), findsOneWidget);
+    expect(find.text('VSync Pacing'), findsOneWidget);
   });
 
   testWidgets('biology resource pack toggle updates title setting',

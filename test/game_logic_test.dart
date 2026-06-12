@@ -268,6 +268,11 @@ void main() {
       selectedCharacterName: 'lymphocyteScout',
       unlockedCharacterNames: ['bioSquare', 'lymphocyteScout'],
       biologyResourcePackEnabled: true,
+      graphicsQualityPresetName: 'low',
+      vSyncPacingEnabled: false,
+      autoPerformanceScalingEnabled: false,
+      reducedEffectsEnabled: true,
+      fpsMeterVisible: false,
       checkpoint: checkpoint,
     ).encode();
 
@@ -279,6 +284,11 @@ void main() {
     expect(decoded.selectedCharacterName, 'lymphocyteScout');
     expect(decoded.unlockedCharacterNames, contains('lymphocyteScout'));
     expect(decoded.biologyResourcePackEnabled, isTrue);
+    expect(decoded.graphicsQualityPresetName, 'low');
+    expect(decoded.vSyncPacingEnabled, isFalse);
+    expect(decoded.autoPerformanceScalingEnabled, isFalse);
+    expect(decoded.reducedEffectsEnabled, isTrue);
+    expect(decoded.fpsMeterVisible, isFalse);
     expect(decoded.checkpoint?.round, 6);
     expect(decoded.checkpoint?.equippedMiniWeapons, ['sentryPod']);
     expect(decoded.checkpoint?.passiveLevels['sporeMatrix'], 2);

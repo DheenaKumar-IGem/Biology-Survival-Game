@@ -447,6 +447,11 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
   bool courseScoreRecorded = false;
   bool developerInvulnerable = false;
   bool biologyResourcePackEnabled = false;
+  GraphicsQualityPreset graphicsQualityPreset = GraphicsQualityPreset.medium;
+  bool vSyncPacingEnabled = true;
+  bool autoPerformanceScalingEnabled = true;
+  bool reducedEffectsEnabled = false;
+  bool fpsMeterVisible = true;
   RunMode runMode = RunMode.normal;
   GameDifficulty selectedDifficulty = GameDifficulty.normal;
   GameDifficulty currentDifficulty = GameDifficulty.normal;
@@ -494,6 +499,12 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
   bool get currentRoundUsesWeaponShop => roundBossRequired;
   String get visualResourcePackLabel =>
       biologyResourcePackEnabled ? 'Biology Pack' : 'Classic Pack';
+  String get graphicsQualityLabel => graphicsQualityPreset.title;
+  String get framePacingLabel => vSyncPacingEnabled ? 'VSync paced' : 'Raw';
+  bool get lowGraphicsMode =>
+      graphicsQualityPreset == GraphicsQualityPreset.low;
+  bool get highGraphicsMode =>
+      graphicsQualityPreset == GraphicsQualityPreset.high;
   double get fpsProgress => (currentFps / 60).clamp(0.0, 1.0).toDouble();
   Color get fpsBarColor {
     if (currentFps >= 55) {
@@ -544,48 +555,81 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
       kIsWeb ||
       defaultTargetPlatform == TargetPlatform.android ||
       defaultTargetPlatform == TargetPlatform.iOS;
-  bool get adaptivePerformanceActive =>
-      _isConstrainedRuntime || (currentFps > 0 && currentFps < 55);
-  bool get criticalPerformanceActive => currentFps > 0 && currentFps < 42;
+  bool get adaptivePerformanceActive {
+    if (lowGraphicsMode) {
+      return true;
+    }
+    if (!autoPerformanceScalingEnabled) {
+      return false;
+    }
+    final fpsThreshold = highGraphicsMode ? 48 : 55;
+    if (highGraphicsMode) {
+      return currentFps > 0 && currentFps < fpsThreshold;
+    }
+    return _isConstrainedRuntime ||
+        (currentFps > 0 && currentFps < fpsThreshold);
+  }
+
+  bool get criticalPerformanceActive {
+    if (lowGraphicsMode) {
+      return true;
+    }
+    final threshold = highGraphicsMode ? 38 : 42;
+    return autoPerformanceScalingEnabled &&
+        currentFps > 0 &&
+        currentFps < threshold;
+  }
+
   bool get reducedVisualLoad =>
-      adaptivePerformanceActive || enemyRegistry.length >= 42;
+      lowGraphicsMode ||
+      adaptivePerformanceActive ||
+      enemyRegistry.length >= (highGraphicsMode ? 58 : 42);
   bool get lowCostEnemyVisuals =>
       reducedVisualLoad ||
       (biologyResourcePackEnabled && enemyRegistry.length >= 30);
   bool get showEnemyHealthBars =>
-      !adaptivePerformanceActive && enemyRegistry.length < 34;
+      !lowGraphicsMode &&
+      !adaptivePerformanceActive &&
+      enemyRegistry.length < (highGraphicsMode ? 42 : 34);
+  bool get reducedEffectsActive =>
+      reducedEffectsEnabled || criticalPerformanceActive || lowGraphicsMode;
+  bool get lowCostProjectileVisuals =>
+      lowGraphicsMode ||
+      criticalPerformanceActive ||
+      bulletRegistry.length > 90;
+  bool get showArenaGrid => !lowGraphicsMode && !criticalPerformanceActive;
   int get maxActiveEnemies {
     final bossAllowance = roundPhase == RoundFlowPhase.bossFight ||
             roundPhase == RoundFlowPhase.bossPrelude
         ? 8
         : 0;
     if (criticalPerformanceActive) {
-      return 38 + bossAllowance;
+      return (lowGraphicsMode ? 34 : 38) + bossAllowance;
     }
     if (adaptivePerformanceActive) {
-      return 50 + bossAllowance;
+      return (highGraphicsMode ? 58 : 50) + bossAllowance;
     }
-    return 68 + bossAllowance;
+    return (highGraphicsMode ? 84 : 68) + bossAllowance;
   }
 
   int get maxActivePlayerProjectiles {
     if (criticalPerformanceActive) {
-      return 80;
+      return lowGraphicsMode ? 68 : 80;
     }
     if (adaptivePerformanceActive) {
-      return 120;
+      return highGraphicsMode ? 148 : 120;
     }
-    return 180;
+    return highGraphicsMode ? 230 : 180;
   }
 
   int get maxActiveEnemyProjectiles {
     if (criticalPerformanceActive) {
-      return 42;
+      return lowGraphicsMode ? 34 : 42;
     }
     if (adaptivePerformanceActive) {
-      return 64;
+      return highGraphicsMode ? 76 : 64;
     }
-    return 96;
+    return highGraphicsMode ? 124 : 96;
   }
 
   double get enemySpeedMultiplier => enemyFrenzyActive ? 1.16 : 1.0;
@@ -1181,7 +1225,11 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
         );
       canvas.drawRect(arenaRect, pressureGlow);
 
-      final laneCount = criticalPerformanceActive ? 1 : 3;
+      final laneCount = criticalPerformanceActive
+          ? 1
+          : adaptivePerformanceActive
+              ? 2
+              : 3;
       for (var lane = 0; lane < laneCount; lane++) {
         final y = playAreaTop + arenaHeight * (0.22 + lane * 0.27);
         final wave = 38.0 + lane * 9;
@@ -1212,11 +1260,15 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
             ..strokeCap = StrokeCap.round,
         );
       }
-      final ambientCellCount = criticalPerformanceActive
-          ? 6
-          : adaptivePerformanceActive
-              ? 12
-              : 28;
+      final ambientCellCount = lowGraphicsMode
+          ? 4
+          : criticalPerformanceActive
+              ? 6
+              : adaptivePerformanceActive
+                  ? 12
+                  : highGraphicsMode
+                      ? 34
+                      : 28;
       for (var i = 0; i < ambientCellCount; i++) {
         final seed = i * 37.0;
         final drift = arenaVisualTime * (10 + (i % 5) * 2.7);
@@ -1244,7 +1296,11 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2
           ..color = const Color(0xFFB8F7E7).withValues(alpha: 0.07);
-        final slideRingCount = adaptivePerformanceActive ? 4 : 9;
+        final slideRingCount = adaptivePerformanceActive
+            ? 4
+            : highGraphicsMode
+                ? 11
+                : 9;
         for (var i = 0; i < slideRingCount; i++) {
           final seed = i * 53.0;
           final x =
@@ -1265,7 +1321,11 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
           ..color = const Color(0xFFEF476F).withValues(alpha: 0.10)
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.4;
-        final virionCount = adaptivePerformanceActive ? 5 : 14;
+        final virionCount = adaptivePerformanceActive
+            ? 5
+            : highGraphicsMode
+                ? 17
+                : 14;
         for (var i = 0; i < virionCount; i++) {
           final seed = i * 41.0;
           final drift = arenaVisualTime * (8 + (i % 4) * 1.6);
@@ -1302,41 +1362,44 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
           ),
       );
     }
-    final gridPaint = Paint()
-      ..color = const Color(0xFF1B4332).withValues(alpha: 0.18);
-    const gridSize = 34.0;
-    for (double x = 0; x <= size.x; x += gridSize) {
-      canvas.drawRect(Rect.fromLTWH(x, 0, 1, size.y), gridPaint);
-    }
-    for (double y = playAreaTop; y <= size.y; y += gridSize) {
-      canvas.drawRect(Rect.fromLTWH(0, y, size.x, 1), gridPaint);
+    if (showArenaGrid) {
+      final gridPaint = Paint()
+        ..color = const Color(0xFF1B4332).withValues(alpha: 0.18);
+      const gridSize = 34.0;
+      for (double x = 0; x <= size.x; x += gridSize) {
+        canvas.drawRect(Rect.fromLTWH(x, 0, 1, size.y), gridPaint);
+      }
+      for (double y = playAreaTop; y <= size.y; y += gridSize) {
+        canvas.drawRect(Rect.fromLTWH(0, y, size.x, 1), gridPaint);
+      }
     }
     super.render(canvas);
   }
 
   @override
   void update(double dt) {
-    arenaVisualTime += dt;
     final fpsChanged = _recordFrameTiming(dt);
+    final frameDt = _applyFramePacing(dt);
+    arenaVisualTime += frameDt;
     if (enemyFrenzyTimer > 0) {
-      enemyFrenzyTimer = math.max(0.0, enemyFrenzyTimer - dt);
+      enemyFrenzyTimer = math.max(0.0, enemyFrenzyTimer - frameDt);
     }
     if (bannerTimer > 0) {
-      bannerTimer = math.max(0.0, bannerTimer - dt);
+      bannerTimer = math.max(0.0, bannerTimer - frameDt);
       if (bannerTimer <= 0) {
         bannerText = null;
       }
     }
     if (magnetTimer > 0) {
-      magnetTimer = math.max(0.0, magnetTimer - dt);
+      magnetTimer = math.max(0.0, magnetTimer - frameDt);
     }
 
     if (isGameplayActive) {
-      survivalTime += dt;
-      _uiRefreshTimer += dt;
-      _updateRoundFlow(dt);
+      survivalTime += frameDt;
+      _uiRefreshTimer += frameDt;
+      _updateRoundFlow(frameDt);
       _rebuildEnemyCollisionGrid();
-      _updateMiniWeaponSystems(dt);
+      _updateMiniWeaponSystems(frameDt);
       _handleManualCollisions(rebuildGrid: false);
 
       if (_uiRefreshTimer >= 0.1 || fpsChanged) {
@@ -1347,7 +1410,18 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
       notifyUi();
     }
 
-    super.update(dt);
+    super.update(frameDt);
+  }
+
+  double _applyFramePacing(double dt) {
+    if (dt <= 0) {
+      return 0;
+    }
+    final safetyClamp = lowGraphicsMode ? 1 / 24 : 1 / 20;
+    if (!vSyncPacingEnabled) {
+      return dt.clamp(0.0, safetyClamp).toDouble();
+    }
+    return dt.clamp(0.0, 1 / 30).toDouble();
   }
 
   bool _recordFrameTiming(double dt) {
@@ -1543,6 +1617,13 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
     bestMasteryScore = meta.bestMasteryScore;
     researchPoints = meta.researchPoints;
     biologyResourcePackEnabled = meta.biologyResourcePackEnabled;
+    graphicsQualityPreset = enumByNameOrNull(
+            GraphicsQualityPreset.values, meta.graphicsQualityPresetName) ??
+        GraphicsQualityPreset.medium;
+    vSyncPacingEnabled = meta.vSyncPacingEnabled;
+    autoPerformanceScalingEnabled = meta.autoPerformanceScalingEnabled;
+    reducedEffectsEnabled = meta.reducedEffectsEnabled;
+    fpsMeterVisible = meta.fpsMeterVisible;
     unlockedCharacterFrames = {
       CharacterFrame.bioSquare,
       for (final name in meta.unlockedCharacterNames)
@@ -1577,6 +1658,11 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
         for (final frame in unlockedCharacterFrames) frame.name,
       ],
       biologyResourcePackEnabled: biologyResourcePackEnabled,
+      graphicsQualityPresetName: graphicsQualityPreset.name,
+      vSyncPacingEnabled: vSyncPacingEnabled,
+      autoPerformanceScalingEnabled: autoPerformanceScalingEnabled,
+      reducedEffectsEnabled: reducedEffectsEnabled,
+      fpsMeterVisible: fpsMeterVisible,
       checkpoint: checkpointSnapshot,
     );
     unawaited(prefs.setString(_saveKey, meta.encode()));
@@ -2111,6 +2197,56 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
     }
     biologyResourcePackEnabled = enabled;
     playSfx('ui', volume: 0.50, minGap: const Duration(milliseconds: 60));
+    _persistState();
+    notifyUi();
+  }
+
+  void setGraphicsQualityPreset(GraphicsQualityPreset preset) {
+    if (graphicsQualityPreset == preset) {
+      return;
+    }
+    graphicsQualityPreset = preset;
+    playSfx('ui', volume: 0.50, minGap: const Duration(milliseconds: 60));
+    _persistState();
+    notifyUi();
+  }
+
+  void setVSyncPacingEnabled(bool enabled) {
+    if (vSyncPacingEnabled == enabled) {
+      return;
+    }
+    vSyncPacingEnabled = enabled;
+    playSfx('ui', volume: 0.46, minGap: const Duration(milliseconds: 60));
+    _persistState();
+    notifyUi();
+  }
+
+  void setAutoPerformanceScalingEnabled(bool enabled) {
+    if (autoPerformanceScalingEnabled == enabled) {
+      return;
+    }
+    autoPerformanceScalingEnabled = enabled;
+    playSfx('ui', volume: 0.46, minGap: const Duration(milliseconds: 60));
+    _persistState();
+    notifyUi();
+  }
+
+  void setReducedEffectsEnabled(bool enabled) {
+    if (reducedEffectsEnabled == enabled) {
+      return;
+    }
+    reducedEffectsEnabled = enabled;
+    playSfx('ui', volume: 0.46, minGap: const Duration(milliseconds: 60));
+    _persistState();
+    notifyUi();
+  }
+
+  void setFpsMeterVisible(bool enabled) {
+    if (fpsMeterVisible == enabled) {
+      return;
+    }
+    fpsMeterVisible = enabled;
+    playSfx('ui', volume: 0.46, minGap: const Duration(milliseconds: 60));
     _persistState();
     notifyUi();
   }
@@ -3940,7 +4076,9 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
             branchId: branchId,
           ),
         );
-        if (sentryLevel >= 7 && !adaptivePerformanceActive) {
+        if (sentryLevel >= 7 &&
+            !adaptivePerformanceActive &&
+            !reducedEffectsActive) {
           final flankAnchor =
               _dropMiniWeaponAnchor(currentPlayer, distance: 42);
           add(
@@ -4022,7 +4160,8 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
         );
         if ((evolved || rhythmLevel >= 6) &&
             !tightPulse &&
-            !adaptivePerformanceActive) {
+            !adaptivePerformanceActive &&
+            !reducedEffectsActive) {
           add(
             PulseRingWaveComponent(
               centerPoint: currentPlayer.center.clone(),
@@ -6320,6 +6459,57 @@ class BulletComponent extends PositionComponent
 
   @override
   void render(Canvas canvas) {
+    if (game.lowCostProjectileVisuals) {
+      final paint = Paint()..color = tint.withValues(alpha: 0.92);
+      switch (visualStyle) {
+        case BulletVisualStyle.orb:
+          canvas.drawCircle(
+              Offset(size.x / 2, size.y / 2), size.x * 0.42, paint);
+          break;
+        case BulletVisualStyle.rail:
+        case BulletVisualStyle.needle:
+          final angle = math.atan2(direction.y, direction.x);
+          canvas.save();
+          canvas.translate(size.x / 2, size.y / 2);
+          canvas.rotate(angle);
+          canvas.drawRRect(
+            RRect.fromRectAndRadius(
+              Rect.fromCenter(
+                  center: Offset.zero,
+                  width: size.x * 1.45,
+                  height: size.y * 0.5),
+              const Radius.circular(999),
+            ),
+            paint,
+          );
+          canvas.restore();
+          break;
+        case BulletVisualStyle.cross:
+          canvas.drawLine(
+            Offset(size.x * 0.18, size.y * 0.5),
+            Offset(size.x * 0.82, size.y * 0.5),
+            Paint()
+              ..color = tint
+              ..strokeWidth = math.max(2.0, size.x * 0.2)
+              ..strokeCap = StrokeCap.round,
+          );
+          canvas.drawLine(
+            Offset(size.x * 0.5, size.y * 0.18),
+            Offset(size.x * 0.5, size.y * 0.82),
+            Paint()
+              ..color = tint
+              ..strokeWidth = math.max(2.0, size.x * 0.2)
+              ..strokeCap = StrokeCap.round,
+          );
+          break;
+        case BulletVisualStyle.shard:
+        case BulletVisualStyle.capsule:
+          canvas.drawCircle(
+              Offset(size.x / 2, size.y / 2), size.x * 0.38, paint);
+          break;
+      }
+      return;
+    }
     final angle = math.atan2(direction.y, direction.x);
     final w = size.x;
     final h = size.y;
@@ -7666,7 +7856,7 @@ class BioMineComponent extends PositionComponent
       damage,
       knockback: 10,
     );
-    if (hit) {
+    if (hit && !game.reducedEffectsActive) {
       add(
         PulseRingWaveComponent(
           centerPoint: center.clone(),
@@ -7733,37 +7923,39 @@ class HudOverlay extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            const Text(
-                              'FPS',
-                              style: TextStyle(
-                                  fontSize: 10, color: Colors.white70),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(999),
-                                child: LinearProgressIndicator(
-                                  value: game.fpsProgress,
-                                  minHeight: 5,
-                                  backgroundColor: Colors.white12,
-                                  valueColor:
-                                      AlwaysStoppedAnimation(game.fpsBarColor),
+                        if (game.fpsMeterVisible) ...[
+                          Row(
+                            children: [
+                              const Text(
+                                'FPS',
+                                style: TextStyle(
+                                    fontSize: 10, color: Colors.white70),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(999),
+                                  child: LinearProgressIndicator(
+                                    value: game.fpsProgress,
+                                    minHeight: 5,
+                                    backgroundColor: Colors.white12,
+                                    valueColor: AlwaysStoppedAnimation(
+                                        game.fpsBarColor),
+                                  ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              game.currentFps <= 0
-                                  ? '--'
-                                  : game.currentFps.round().toString(),
-                              style: const TextStyle(
-                                  fontSize: 11, fontWeight: FontWeight.w800),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
+                              const SizedBox(width: 8),
+                              Text(
+                                game.currentFps <= 0
+                                    ? '--'
+                                    : game.currentFps.round().toString(),
+                                style: const TextStyle(
+                                    fontSize: 11, fontWeight: FontWeight.w800),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                        ],
                         ClipRRect(
                           borderRadius: BorderRadius.circular(999),
                           child: LinearProgressIndicator(
@@ -8150,6 +8342,7 @@ class TitleOverlay extends StatelessWidget {
           _heroStatRow('Research Points', '${game.researchPoints}'),
           _heroStatRow('Character', game.selectedCharacterFrame.title),
           _heroStatRow('Visual Pack', game.visualResourcePackLabel),
+          _heroStatRow('Graphics', game.graphicsQualityLabel),
           _heroStatRow('Best course clear', '${game.bestCourseScore}'),
           _heroStatRow('Best mastery score', '${game.bestMasteryScore}'),
         ],
@@ -8546,6 +8739,8 @@ class TitleOverlay extends StatelessWidget {
                 const SizedBox(height: 14),
                 _buildVisualPackToggle(accent),
                 const SizedBox(height: 14),
+                _PerformanceSettingsPanel(game: game, accent: accent),
+                const SizedBox(height: 14),
                 _buildCharacterPicker(accent),
                 const SizedBox(height: 16),
                 const Text('Highlights',
@@ -8670,6 +8865,188 @@ class TitleOverlay extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PerformanceSettingsPanel extends StatelessWidget {
+  const _PerformanceSettingsPanel({
+    required this.game,
+    required this.accent,
+  });
+
+  final SquareShooterGame game;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final fpsText =
+        game.currentFps <= 0 ? 'warming up' : '${game.currentFps.round()} FPS';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.035),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: accent.withValues(alpha: 0.24)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: accent.withValues(alpha: 0.34)),
+                ),
+                child: Icon(Icons.speed_rounded, color: accent),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Performance Settings',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Current: ${game.graphicsQualityLabel} graphics, ${game.framePacingLabel}, $fpsText.',
+                      style:
+                          const TextStyle(fontSize: 12, color: Colors.white70),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Graphics Quality',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final preset in GraphicsQualityPreset.values)
+                ChoiceChip(
+                  label: Text(preset.title),
+                  selected: game.graphicsQualityPreset == preset,
+                  onSelected: (_) => game.setGraphicsQualityPreset(preset),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            game.graphicsQualityPreset.description,
+            style: const TextStyle(fontSize: 12, color: Colors.white70),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF081C15).withValues(alpha: 0.42),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: accent.withValues(alpha: 0.18)),
+            ),
+            child: Text(
+              'Active caps: ${game.maxActiveEnemies} enemies, '
+              '${game.maxActivePlayerProjectiles} player shots, '
+              '${game.maxActiveEnemyProjectiles} enemy shots.',
+              style: const TextStyle(fontSize: 12, color: Color(0xFFD8F3DC)),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _SettingsSwitchRow(
+            title: 'VSync Pacing',
+            description:
+                'Clamps large frame jumps so movement and collisions stay stable.',
+            value: game.vSyncPacingEnabled,
+            accent: accent,
+            onChanged: game.setVSyncPacingEnabled,
+          ),
+          _SettingsSwitchRow(
+            title: 'Auto Performance Scaling',
+            description:
+                'Automatically trims visuals and caps if the game drops frames.',
+            value: game.autoPerformanceScalingEnabled,
+            accent: accent,
+            onChanged: game.setAutoPerformanceScalingEnabled,
+          ),
+          _SettingsSwitchRow(
+            title: 'Reduced Effects',
+            description:
+                'Cuts extra duplicate pulses, mines, and secondary effects first.',
+            value: game.reducedEffectsEnabled,
+            accent: accent,
+            onChanged: game.setReducedEffectsEnabled,
+          ),
+          _SettingsSwitchRow(
+            title: 'FPS Meter',
+            description: 'Shows the top-left FPS bar while playing.',
+            value: game.fpsMeterVisible,
+            accent: accent,
+            onChanged: game.setFpsMeterVisible,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SettingsSwitchRow extends StatelessWidget {
+  const _SettingsSwitchRow({
+    required this.title,
+    required this.description,
+    required this.value,
+    required this.accent,
+    required this.onChanged,
+  });
+
+  final String title;
+  final String description;
+  final bool value;
+  final Color accent;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 2),
+                Text(description,
+                    style:
+                        const TextStyle(fontSize: 11, color: Colors.white70)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Switch.adaptive(
+            value: value,
+            activeThumbColor: accent,
+            activeTrackColor: accent.withValues(alpha: 0.34),
+            onChanged: onChanged,
+          ),
+        ],
       ),
     );
   }
@@ -9052,6 +9429,11 @@ class PauseOverlay extends StatelessWidget {
                       Text('Difficulty: ${game.difficultyLabel}'),
                       Text('Checkpoint: ${game.checkpointSummary}'),
                       const SizedBox(height: 12),
+                      _PerformanceSettingsPanel(
+                        game: game,
+                        accent: const Color(0xFF2EC4B6),
+                      ),
+                      const SizedBox(height: 14),
                       const Text('Controls',
                           style: TextStyle(
                               fontSize: 18, fontWeight: FontWeight.w700)),

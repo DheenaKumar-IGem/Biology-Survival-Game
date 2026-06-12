@@ -13,11 +13,34 @@ enum GameDifficulty {
   hard,
 }
 
+enum GraphicsQualityPreset {
+  low,
+  medium,
+  high,
+}
+
 extension GameDifficultyPresentation on GameDifficulty {
   String get title => switch (this) {
         GameDifficulty.easy => 'Easy',
         GameDifficulty.normal => 'Normal',
         GameDifficulty.hard => 'Hard',
+      };
+}
+
+extension GraphicsQualityPresetPresentation on GraphicsQualityPreset {
+  String get title => switch (this) {
+        GraphicsQualityPreset.low => 'Low',
+        GraphicsQualityPreset.medium => 'Medium',
+        GraphicsQualityPreset.high => 'High',
+      };
+
+  String get description => switch (this) {
+        GraphicsQualityPreset.low =>
+          'Prioritizes 60 FPS with fewer effects, lower caps, and simpler enemy art.',
+        GraphicsQualityPreset.medium =>
+          'Balanced visuals with adaptive scaling for web and mobile.',
+        GraphicsQualityPreset.high =>
+          'Richer visuals and higher caps, with emergency scaling if FPS drops.',
       };
 }
 
@@ -948,6 +971,11 @@ class PersistedMetaState {
     required this.selectedCharacterName,
     required this.unlockedCharacterNames,
     required this.biologyResourcePackEnabled,
+    required this.graphicsQualityPresetName,
+    required this.vSyncPacingEnabled,
+    required this.autoPerformanceScalingEnabled,
+    required this.reducedEffectsEnabled,
+    required this.fpsMeterVisible,
     required this.checkpoint,
   });
 
@@ -959,6 +987,11 @@ class PersistedMetaState {
   final String selectedCharacterName;
   final List<String> unlockedCharacterNames;
   final bool biologyResourcePackEnabled;
+  final String graphicsQualityPresetName;
+  final bool vSyncPacingEnabled;
+  final bool autoPerformanceScalingEnabled;
+  final bool reducedEffectsEnabled;
+  final bool fpsMeterVisible;
   final PersistedCheckpointSnapshot? checkpoint;
 
   Map<String, dynamic> toJson() {
@@ -971,6 +1004,11 @@ class PersistedMetaState {
       'selectedCharacterName': selectedCharacterName,
       'unlockedCharacterNames': unlockedCharacterNames,
       'biologyResourcePackEnabled': biologyResourcePackEnabled,
+      'graphicsQualityPresetName': graphicsQualityPresetName,
+      'vSyncPacingEnabled': vSyncPacingEnabled,
+      'autoPerformanceScalingEnabled': autoPerformanceScalingEnabled,
+      'reducedEffectsEnabled': reducedEffectsEnabled,
+      'fpsMeterVisible': fpsMeterVisible,
       'checkpoint': checkpoint?.toJson(),
     };
   }
@@ -988,6 +1026,11 @@ class PersistedMetaState {
         selectedCharacterName: 'bioSquare',
         unlockedCharacterNames: ['bioSquare'],
         biologyResourcePackEnabled: false,
+        graphicsQualityPresetName: 'medium',
+        vSyncPacingEnabled: true,
+        autoPerformanceScalingEnabled: true,
+        reducedEffectsEnabled: false,
+        fpsMeterVisible: true,
         checkpoint: null,
       );
     }
@@ -1012,6 +1055,19 @@ class PersistedMetaState {
             value.toString(),
         }.toList(),
         biologyResourcePackEnabled: raw['biologyResourcePackEnabled'] == true,
+        graphicsQualityPresetName:
+            raw['graphicsQualityPresetName'] as String? ?? 'medium',
+        vSyncPacingEnabled: raw['vSyncPacingEnabled'] is bool
+            ? raw['vSyncPacingEnabled'] as bool
+            : true,
+        autoPerformanceScalingEnabled:
+            raw['autoPerformanceScalingEnabled'] is bool
+                ? raw['autoPerformanceScalingEnabled'] as bool
+                : true,
+        reducedEffectsEnabled: raw['reducedEffectsEnabled'] == true,
+        fpsMeterVisible: raw['fpsMeterVisible'] is bool
+            ? raw['fpsMeterVisible'] as bool
+            : true,
         checkpoint: raw['checkpoint'] is Map<String, dynamic>
             ? PersistedCheckpointSnapshot.fromJson(
                 raw['checkpoint'] as Map<String, dynamic>)
@@ -1027,6 +1083,11 @@ class PersistedMetaState {
         selectedCharacterName: 'bioSquare',
         unlockedCharacterNames: ['bioSquare'],
         biologyResourcePackEnabled: false,
+        graphicsQualityPresetName: 'medium',
+        vSyncPacingEnabled: true,
+        autoPerformanceScalingEnabled: true,
+        reducedEffectsEnabled: false,
+        fpsMeterVisible: true,
         checkpoint: null,
       );
     }
