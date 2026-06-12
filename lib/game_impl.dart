@@ -540,6 +540,54 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
           roundPhase == RoundFlowPhase.bossFight);
   bool get weaponPathLocked => true;
   double get playAreaTop => 8;
+  bool get _isConstrainedRuntime =>
+      kIsWeb ||
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS;
+  bool get adaptivePerformanceActive =>
+      _isConstrainedRuntime || (currentFps > 0 && currentFps < 55);
+  bool get criticalPerformanceActive => currentFps > 0 && currentFps < 42;
+  bool get reducedVisualLoad =>
+      adaptivePerformanceActive || enemyRegistry.length >= 42;
+  bool get lowCostEnemyVisuals =>
+      reducedVisualLoad ||
+      (biologyResourcePackEnabled && enemyRegistry.length >= 30);
+  bool get showEnemyHealthBars =>
+      !adaptivePerformanceActive && enemyRegistry.length < 34;
+  int get maxActiveEnemies {
+    final bossAllowance = roundPhase == RoundFlowPhase.bossFight ||
+            roundPhase == RoundFlowPhase.bossPrelude
+        ? 8
+        : 0;
+    if (criticalPerformanceActive) {
+      return 38 + bossAllowance;
+    }
+    if (adaptivePerformanceActive) {
+      return 50 + bossAllowance;
+    }
+    return 68 + bossAllowance;
+  }
+
+  int get maxActivePlayerProjectiles {
+    if (criticalPerformanceActive) {
+      return 80;
+    }
+    if (adaptivePerformanceActive) {
+      return 120;
+    }
+    return 180;
+  }
+
+  int get maxActiveEnemyProjectiles {
+    if (criticalPerformanceActive) {
+      return 42;
+    }
+    if (adaptivePerformanceActive) {
+      return 64;
+    }
+    return 96;
+  }
+
   double get enemySpeedMultiplier => enemyFrenzyActive ? 1.16 : 1.0;
   int get enemyHealthBonus => enemyFrenzyActive ? 1 : 0;
   double get sampleMagnetRadius =>
@@ -1133,7 +1181,8 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
         );
       canvas.drawRect(arenaRect, pressureGlow);
 
-      for (var lane = 0; lane < 3; lane++) {
+      final laneCount = criticalPerformanceActive ? 1 : 3;
+      for (var lane = 0; lane < laneCount; lane++) {
         final y = playAreaTop + arenaHeight * (0.22 + lane * 0.27);
         final wave = 38.0 + lane * 9;
         final path = Path()
@@ -1163,7 +1212,12 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
             ..strokeCap = StrokeCap.round,
         );
       }
-      for (var i = 0; i < 28; i++) {
+      final ambientCellCount = criticalPerformanceActive
+          ? 6
+          : adaptivePerformanceActive
+              ? 12
+              : 28;
+      for (var i = 0; i < ambientCellCount; i++) {
         final seed = i * 37.0;
         final drift = arenaVisualTime * (10 + (i % 5) * 2.7);
         final x = (seed * 13 + drift) % (size.x + 80) - 40;
@@ -1185,12 +1239,13 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
             ..color = cellColor.withValues(alpha: i % 6 == 0 ? 0.13 : 0.08),
         );
       }
-      if (biologyResourcePackEnabled) {
+      if (biologyResourcePackEnabled && !criticalPerformanceActive) {
         final slideRing = Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2
           ..color = const Color(0xFFB8F7E7).withValues(alpha: 0.07);
-        for (var i = 0; i < 9; i++) {
+        final slideRingCount = adaptivePerformanceActive ? 4 : 9;
+        for (var i = 0; i < slideRingCount; i++) {
           final seed = i * 53.0;
           final x =
               (seed * 9 + arenaVisualTime * (5 + i)) % (size.x + 120) - 60;
@@ -1210,7 +1265,8 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
           ..color = const Color(0xFFEF476F).withValues(alpha: 0.10)
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.4;
-        for (var i = 0; i < 14; i++) {
+        final virionCount = adaptivePerformanceActive ? 5 : 14;
+        for (var i = 0; i < virionCount; i++) {
           final seed = i * 41.0;
           final drift = arenaVisualTime * (8 + (i % 4) * 1.6);
           final x = (seed * 17 - drift) % (size.x + 100) - 50;
@@ -2292,8 +2348,7 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
     if (_shouldSpawnTacticalPack(remainingThreats)) {
       return _spawnTacticalPack(math.min(remainingThreats, 3));
     }
-    _spawnEnemyFromArchetype(_pickEnemyArchetype());
-    return 1;
+    return _spawnEnemyFromArchetype(_pickEnemyArchetype()) ? 1 : 0;
   }
 
   bool _shouldSpawnTacticalPack(int remainingThreats) {
@@ -2309,8 +2364,7 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
 
   int _spawnTacticalPack(int maxCount) {
     if (maxCount < 3) {
-      _spawnEnemyFromArchetype(_pickEnemyArchetype());
-      return 1;
+      return _spawnEnemyFromArchetype(_pickEnemyArchetype()) ? 1 : 0;
     }
     final packBuilders = <int Function()>[
       _spawnRunnerPincerPack,
@@ -2373,21 +2427,26 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
     final playerCenter = player?.center ?? Vector2(size.x / 2, size.y / 2);
     final laneY =
         playerCenter.y.clamp(playAreaTop + 28, size.y - 28).toDouble();
-    _spawnEnemyFromArchetype(
+    var spawned = 0;
+    if (_spawnEnemyFromArchetype(
       EnemyArchetype.runner,
       forcedPosition:
           _edgeSpawnPosition(edge: 0, entitySize: 22, laneY: laneY - 26),
       forcedHealth: 2 + currentRound ~/ 4,
       forcedSpeed: 134 + currentRound * 2.1,
-    );
-    _spawnEnemyFromArchetype(
+    )) {
+      spawned += 1;
+    }
+    if (_spawnEnemyFromArchetype(
       EnemyArchetype.runner,
       forcedPosition:
           _edgeSpawnPosition(edge: 1, entitySize: 22, laneY: laneY + 26),
       forcedHealth: 2 + currentRound ~/ 4,
       forcedSpeed: 134 + currentRound * 2.1,
-    );
-    _spawnEnemyFromArchetype(
+    )) {
+      spawned += 1;
+    }
+    if (_spawnEnemyFromArchetype(
       stalkerUnlocked ? EnemyArchetype.stalker : _heavyFrontlinerArchetype,
       forcedPosition: _edgeSpawnPosition(
         edge: rng.nextBool() ? 2 : 3,
@@ -2396,8 +2455,10 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
       ),
       forcedHealth: (stalkerUnlocked ? 4 : 7) + currentRound ~/ 4,
       forcedSpeed: (stalkerUnlocked ? 98 : 78) + currentRound * 1.7,
-    );
-    return 3;
+    )) {
+      spawned += 1;
+    }
+    return spawned;
   }
 
   int _spawnStalkerClampPack() {
@@ -2407,20 +2468,25 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
     final playerCenter = player?.center ?? Vector2(size.x / 2, size.y / 2);
     final leftX = (playerCenter.x - 58).clamp(24.0, size.x - 24).toDouble();
     final rightX = (playerCenter.x + 58).clamp(24.0, size.x - 24).toDouble();
-    _spawnEnemyFromArchetype(
+    var spawned = 0;
+    if (_spawnEnemyFromArchetype(
       EnemyArchetype.stalker,
       forcedPosition: _edgeSpawnPosition(edge: 2, entitySize: 24, laneX: leftX),
       forcedHealth: 4 + currentRound ~/ 4,
       forcedSpeed: 96 + currentRound * 1.6,
-    );
-    _spawnEnemyFromArchetype(
+    )) {
+      spawned += 1;
+    }
+    if (_spawnEnemyFromArchetype(
       EnemyArchetype.stalker,
       forcedPosition:
           _edgeSpawnPosition(edge: 3, entitySize: 24, laneX: rightX),
       forcedHealth: 4 + currentRound ~/ 4,
       forcedSpeed: 96 + currentRound * 1.6,
-    );
-    _spawnEnemyFromArchetype(
+    )) {
+      spawned += 1;
+    }
+    if (_spawnEnemyFromArchetype(
       _heavyFrontlinerArchetype,
       forcedPosition: _edgeSpawnPosition(
         edge: rng.nextBool() ? 0 : 1,
@@ -2429,13 +2495,16 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
       ),
       forcedHealth: (bruteUnlocked ? 11 : 8) + currentRound ~/ 3,
       forcedSpeed: (bruteUnlocked ? 98 : 72) + currentRound * 1.3,
-    );
-    return 3;
+    )) {
+      spawned += 1;
+    }
+    return spawned;
   }
 
   int _spawnSplitterScreenPack() {
     final playerCenter = player?.center ?? Vector2(size.x / 2, size.y / 2);
-    _spawnEnemyFromArchetype(
+    var spawned = 0;
+    if (_spawnEnemyFromArchetype(
       EnemyArchetype.splitter,
       forcedPosition: _edgeSpawnPosition(
         edge: rng.nextBool() ? 2 : 3,
@@ -2444,25 +2513,31 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
       ),
       forcedHealth: 5 + currentRound ~/ 3,
       forcedSpeed: 88 + currentRound * 1.2,
-    );
-    _spawnEnemyFromArchetype(
+    )) {
+      spawned += 1;
+    }
+    if (_spawnEnemyFromArchetype(
       EnemyArchetype.runner,
       forcedPosition: _edgeSpawnPosition(
           edge: 0, entitySize: 20, laneY: playerCenter.y - 48),
       forcedHealth: 2 + currentRound ~/ 4,
       forcedSpeed: 136 + currentRound * 2.0,
-    );
-    _spawnEnemyFromArchetype(
+    )) {
+      spawned += 1;
+    }
+    if (_spawnEnemyFromArchetype(
       EnemyArchetype.runner,
       forcedPosition: _edgeSpawnPosition(
           edge: 1, entitySize: 20, laneY: playerCenter.y + 48),
       forcedHealth: 2 + currentRound ~/ 4,
       forcedSpeed: 136 + currentRound * 2.0,
-    );
-    return 3;
+    )) {
+      spawned += 1;
+    }
+    return spawned;
   }
 
-  void _spawnEnemyFromArchetype(
+  bool _spawnEnemyFromArchetype(
     EnemyArchetype archetype, {
     Vector2? forcedPosition,
     double? forcedSize,
@@ -2473,6 +2548,9 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
     int splitGeneration = 0,
     bool enhancedWeaver = false,
   }) {
+    if (enemyRegistry.length >= maxActiveEnemies) {
+      return false;
+    }
     final enemySize = forcedSize ??
         (archetype.baseSize + rng.nextDouble() * archetype.sizeVariance);
     late Vector2 spawn;
@@ -2541,10 +2619,11 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
         enhancedWeaver: enhancedWeaver,
       ),
     );
+    return true;
   }
 
   void spawnEnhancedWeavers(Vector2 origin, int count) {
-    if (enemyRegistry.length > 70) {
+    if (enemyRegistry.length >= maxActiveEnemies) {
       return;
     }
     for (int i = 0; i < count; i++) {
@@ -2552,7 +2631,7 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
           (math.pi * 2 * i) / math.max(1, count) + rng.nextDouble() * 0.45;
       final offset = Vector2(math.cos(angle), math.sin(angle)) *
           (42 + rng.nextDouble() * 26);
-      _spawnEnemyFromArchetype(
+      if (_spawnEnemyFromArchetype(
         EnemyArchetype.stalker,
         forcedPosition: _clampPickupPosition(origin + offset, 28),
         forcedSize: 28,
@@ -2561,8 +2640,9 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
         rewardCoins: 0,
         canDropPickup: false,
         enhancedWeaver: true,
-      );
-      enemiesSpawnedThisRound += 1;
+      )) {
+        enemiesSpawnedThisRound += 1;
+      }
     }
   }
 
@@ -2574,7 +2654,7 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
       final archetype = heavySplit && i.isEven
           ? EnemyArchetype.splitter
           : EnemyArchetype.swarm;
-      _spawnEnemyFromArchetype(
+      if (_spawnEnemyFromArchetype(
         archetype,
         forcedPosition: origin + offset,
         forcedSize: archetype == EnemyArchetype.splitter ? 22 : 15,
@@ -2587,8 +2667,9 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
         rewardCoins: 0,
         canDropPickup: false,
         splitGeneration: archetype == EnemyArchetype.splitter ? 1 : 0,
-      );
-      enemiesSpawnedThisRound += 1;
+      )) {
+        enemiesSpawnedThisRound += 1;
+      }
     }
   }
 
@@ -2596,7 +2677,7 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
     for (int i = 0; i < 2; i++) {
       final angle = rng.nextDouble() * math.pi * 2;
       final offset = Vector2(math.cos(angle), math.sin(angle)) * 10;
-      _spawnEnemyFromArchetype(
+      if (_spawnEnemyFromArchetype(
         EnemyArchetype.swarm,
         forcedPosition: enemy.center + offset,
         forcedSize: 12,
@@ -2604,8 +2685,9 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
         forcedSpeed: 150 + currentRound * 1.2,
         rewardCoins: 0,
         canDropPickup: false,
-      );
-      enemiesSpawnedThisRound += 1;
+      )) {
+        enemiesSpawnedThisRound += 1;
+      }
     }
   }
 
@@ -3858,7 +3940,7 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
             branchId: branchId,
           ),
         );
-        if (sentryLevel >= 7) {
+        if (sentryLevel >= 7 && !adaptivePerformanceActive) {
           final flankAnchor =
               _dropMiniWeaponAnchor(currentPlayer, distance: 42);
           add(
@@ -3938,7 +4020,9 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
             knockback: 12 + rhythmLevel * 2.2 + (tightPulse ? 4 : 0),
           ),
         );
-        if ((evolved || rhythmLevel >= 6) && !tightPulse) {
+        if ((evolved || rhythmLevel >= 6) &&
+            !tightPulse &&
+            !adaptivePerformanceActive) {
           add(
             PulseRingWaveComponent(
               centerPoint: currentPlayer.center.clone(),
@@ -4699,6 +4783,10 @@ class EnemyComponent extends PositionComponent
   @override
   void render(Canvas canvas) {
     if (game.biologyResourcePackEnabled) {
+      if (game.lowCostEnemyVisuals) {
+        _renderFastBiologyPack(canvas);
+        return;
+      }
       _renderBiologyPack(canvas);
       return;
     }
@@ -4803,19 +4891,124 @@ class EnemyComponent extends PositionComponent
         canvas.drawPath(path, arrowPaint);
       }
     }
-    final hpFraction =
-        health <= 0 ? 0.0 : (health / _maxHealth).clamp(0.0, 1.0);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-          Rect.fromLTWH(0, size.y + 3, size.x, 4), const Radius.circular(999)),
-      Paint()..color = Colors.black.withValues(alpha: 0.55),
+    if (game.showEnemyHealthBars || health < _maxHealth || enhancedWeaver) {
+      _drawEnemyHealthBar(canvas);
+    }
+  }
+
+  void _renderFastBiologyPack(Canvas canvas) {
+    final bodyColor = hitFlash > 0
+        ? Colors.white
+        : enhancedWeaver
+            ? const Color(0xFF6C63FF)
+            : archetype.bodyColor;
+    final coreColor =
+        enhancedWeaver ? const Color(0xFFE0AAFF) : archetype.coreColor;
+    final centerOffset = Offset(size.x / 2, size.y / 2);
+    final bodyPaint = Paint()..color = bodyColor;
+    final corePaint = Paint()..color = coreColor.withValues(alpha: 0.92);
+
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: centerOffset.translate(0, size.y * 0.12),
+        width: size.x * 0.86,
+        height: size.y * 0.28,
+      ),
+      Paint()..color = Colors.black.withValues(alpha: 0.18),
     );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-          Rect.fromLTWH(0, size.y + 3, size.x * hpFraction, 4),
-          const Radius.circular(999)),
-      Paint()..color = const Color(0xFFD8F3DC),
-    );
+
+    switch (archetype) {
+      case EnemyArchetype.runner:
+        final angle = math.atan2(visualDirection.y, visualDirection.x);
+        canvas.save();
+        canvas.translate(size.x / 2, size.y / 2);
+        canvas.rotate(angle);
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromCenter(
+                center: Offset.zero,
+                width: size.x * 0.96,
+                height: size.y * 0.48),
+            Radius.circular(size.y * 0.28),
+          ),
+          bodyPaint,
+        );
+        canvas.drawLine(
+          Offset(-size.x * 0.48, 0),
+          Offset(-size.x * 0.78, size.y * 0.16),
+          Paint()
+            ..color = coreColor.withValues(alpha: 0.75)
+            ..strokeWidth = 1.8
+            ..strokeCap = StrokeCap.round,
+        );
+        canvas.restore();
+        break;
+      case EnemyArchetype.stalker:
+        final head = Path()
+          ..moveTo(size.x * 0.50, size.y * 0.10)
+          ..lineTo(size.x * 0.78, size.y * 0.34)
+          ..lineTo(size.x * 0.62, size.y * 0.64)
+          ..lineTo(size.x * 0.50, size.y * 0.92)
+          ..lineTo(size.x * 0.38, size.y * 0.64)
+          ..lineTo(size.x * 0.22, size.y * 0.34)
+          ..close();
+        canvas.drawPath(head, bodyPaint);
+        canvas.drawLine(
+          Offset(size.x * 0.50, size.y * 0.58),
+          Offset(size.x * 0.50, size.y * 0.96),
+          Paint()
+            ..color = coreColor.withValues(alpha: 0.86)
+            ..strokeWidth = 2.2
+            ..strokeCap = StrokeCap.round,
+        );
+        break;
+      case EnemyArchetype.splitter:
+        canvas.drawCircle(
+            Offset(size.x * 0.38, size.y * 0.50), size.x * 0.28, bodyPaint);
+        canvas.drawCircle(
+            Offset(size.x * 0.62, size.y * 0.50), size.x * 0.28, bodyPaint);
+        break;
+      case EnemyArchetype.tank:
+      case EnemyArchetype.brute:
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromCenter(
+                center: centerOffset,
+                width: size.x * 0.9,
+                height: size.y * 0.78),
+            Radius.circular(size.x * 0.24),
+          ),
+          bodyPaint,
+        );
+        if (archetype == EnemyArchetype.brute &&
+            bruteMoveDirection.length2 > 0) {
+          _drawBruteDirectionArrows(canvas, coreColor);
+        }
+        break;
+      case EnemyArchetype.rainbow:
+      case EnemyArchetype.swarm:
+        canvas.drawCircle(centerOffset, size.x * 0.38, bodyPaint);
+        final spikePaint = Paint()
+          ..color = bodyColor.withValues(alpha: 0.76)
+          ..strokeWidth = 1.8
+          ..strokeCap = StrokeCap.round;
+        for (var i = 0; i < 6; i++) {
+          final angle = i * math.pi / 3;
+          canvas.drawLine(
+            centerOffset.translate(math.cos(angle) * size.x * 0.30,
+                math.sin(angle) * size.x * 0.30),
+            centerOffset.translate(math.cos(angle) * size.x * 0.48,
+                math.sin(angle) * size.x * 0.48),
+            spikePaint,
+          );
+        }
+        break;
+    }
+
+    canvas.drawCircle(centerOffset, size.x * 0.13, corePaint);
+    if (game.showEnemyHealthBars || health < _maxHealth || enhancedWeaver) {
+      _drawEnemyHealthBar(canvas);
+    }
   }
 
   void _renderBiologyPack(Canvas canvas) {
@@ -4902,7 +5095,9 @@ class EnemyComponent extends PositionComponent
       }
     }
 
-    _drawEnemyHealthBar(canvas);
+    if (game.showEnemyHealthBars || health < _maxHealth || enhancedWeaver) {
+      _drawEnemyHealthBar(canvas);
+    }
   }
 
   void _drawSpikyVirion(
@@ -6102,6 +6297,10 @@ class BulletComponent extends PositionComponent
   @override
   Future<void> onLoad() async {
     await super.onLoad();
+    if (game.bulletRegistry.length >= game.maxActivePlayerProjectiles) {
+      removeFromParent();
+      return;
+    }
     game.bulletRegistry.add(this);
   }
 
@@ -6283,6 +6482,10 @@ class EnemyProjectileComponent extends PositionComponent
   @override
   Future<void> onLoad() async {
     await super.onLoad();
+    if (game.enemyProjectileRegistry.length >= game.maxActiveEnemyProjectiles) {
+      removeFromParent();
+      return;
+    }
     game.enemyProjectileRegistry.add(this);
   }
 

@@ -34,7 +34,7 @@ jobs:
         run: flutter test tool/export_lesson_cache_test.dart
 
       - name: Build web app
-        run: flutter build web --release --base-href /igem-app/
+        run: flutter build web --release --base-href /Biology-Survival-Game/
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

@@ -44,7 +44,7 @@ Database content lives in `igem_lesson_content` and `igem_lesson_question`. Each
 The repo includes a GitHub Actions workflow at `.github/workflows/deploy-pages.yml` that builds the Flutter web app and deploys it to GitHub Pages from `main`. For this repo, the site URL is expected to be:
 
 ```text
-https://queencitygems.github.io/igem-app/
+https://dheenakumar-igem.github.io/Biology-Survival-Game/
 ```
 ## Run
 ```bash
