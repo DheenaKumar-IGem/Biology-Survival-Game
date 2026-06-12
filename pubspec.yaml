@@ -1,0 +1,28 @@
+name: square_shooter_game
+description: A 2D shooter starter built with Flutter, Dart, and Flame.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.3.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flame: ^1.37.0
+  postgres: ^3.5.6
+  shared_preferences: ^2.5.3
+  flame_audio: ^2.12.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/weapons/
+    - assets/effects/
+    - assets/sfx/
+    - assets/music/

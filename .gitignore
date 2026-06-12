@@ -1,0 +1,25 @@
+.dart_tool/
+build/
+.idea/
+*.iml
+
+# Local lesson/database cache exports. Runtime cache is stored by SharedPreferences.
+.lesson_cache/
+lesson_cache.json
+lessons_cache.json
+web/lesson_cache.json
+!web/lesson_cache.json
+
+# Local database credentials or overrides.
+.env
+.env.*
+
+# Flutter / Dart generated files
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub/
+
+# IDE / OS noise
+.idea/
+*.log
