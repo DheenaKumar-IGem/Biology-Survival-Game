@@ -37,8 +37,8 @@ void main() {
     expect(find.text('Research Points'), findsOneWidget);
     expect(find.text('Biology Resource Pack'), findsOneWidget);
     expect(find.text('Performance Settings'), findsOneWidget);
-    expect(find.text('Graphics Quality'), findsOneWidget);
-    expect(find.text('VSync Pacing'), findsOneWidget);
+    expect(find.text('Graphics Quality'), findsNothing);
+    expect(find.text('VSync Pacing'), findsNothing);
   });
 
   testWidgets('biology resource pack toggle updates title setting',
@@ -50,13 +50,19 @@ void main() {
     expect(game.biologyResourcePackEnabled, isFalse);
     expect(find.text('Biology Resource Pack'), findsOneWidget);
 
+    await tester.tap(find.text('Performance Settings'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Graphics Quality'), findsOneWidget);
+    expect(find.text('VSync Pacing'), findsOneWidget);
+
     await tester.ensureVisible(find.byType(Switch).first);
     await tester.pump();
     await tester.tap(find.byType(Switch).first);
     await tester.pump();
 
     expect(game.biologyResourcePackEnabled, isTrue);
-    expect(find.text('Biology Pack'), findsOneWidget);
+    expect(find.text('Biology Pack'), findsWidgets);
   });
 
   testWidgets('blood vessel defense prototype screen renders',

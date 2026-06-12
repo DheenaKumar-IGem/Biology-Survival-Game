@@ -8231,20 +8231,7 @@ class TitleOverlay extends StatelessWidget {
             children: [
               Expanded(flex: 5, child: _buildPrimaryPlayPanel(context)),
               const SizedBox(width: 14),
-              Expanded(
-                flex: 4,
-                child: Column(
-                  children: [
-                    Expanded(
-                        flex: 5, child: _buildCompactSettingsPanel(context)),
-                    const SizedBox(height: 12),
-                    Expanded(
-                        flex: 3, child: _buildCharacterSummaryPanel(context)),
-                    const SizedBox(height: 12),
-                    Expanded(flex: 3, child: _buildModeStrip(context)),
-                  ],
-                ),
-              ),
+              Expanded(flex: 4, child: _buildHomeHubPanel(context)),
             ],
           ),
         ),
@@ -8464,28 +8451,6 @@ class TitleOverlay extends StatelessWidget {
               style: TextStyle(fontSize: 14, height: 1.35),
             ),
             const SizedBox(height: 14),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _LauncherMetric(
-                  label: 'Checkpoint',
-                  value: game.hasSavedCheckpoint ? 'Saved' : 'None',
-                  accent: accent,
-                ),
-                _LauncherMetric(
-                  label: 'Course',
-                  value: '${game.bestCourseScore}',
-                  accent: accent,
-                ),
-                _LauncherMetric(
-                  label: 'Mastery',
-                  value: '${game.bestMasteryScore}',
-                  accent: accent,
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
             const Text('Difficulty',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
             const SizedBox(height: 8),
@@ -8506,7 +8471,12 @@ class TitleOverlay extends StatelessWidget {
               'Restart Game starts on ${game.selectedDifficulty.title}. Continue keeps the saved checkpoint difficulty.',
               style: const TextStyle(fontSize: 12, color: Colors.white70),
             ),
-            const Spacer(),
+            if (!compact) ...[
+              const SizedBox(height: 14),
+              Expanded(child: _buildCourseFlowPanel()),
+              const SizedBox(height: 14),
+            ] else
+              const Spacer(),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -8539,99 +8509,314 @@ class TitleOverlay extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: const [
-                _HeroChip(icon: Icons.school_rounded, label: 'Lesson + quiz'),
-                _HeroChip(
-                    icon: Icons.auto_awesome_rounded, label: 'Mini-weapons'),
-                _HeroChip(icon: Icons.save_rounded, label: 'Boss checkpoints'),
-              ],
-            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildCompactSettingsPanel(BuildContext context) {
+  Widget _buildCourseFlowPanel() {
     const accent = Color(0xFF2EC4B6);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.speed_rounded, color: accent),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: Text('Performance Settings',
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxHeight < 180;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Session Roadmap',
                       style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
-                ),
-                Text(
-                  game.currentFps <= 0
-                      ? game.graphicsQualityLabel
-                      : '${game.currentFps.round()} FPS',
-                  style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFFD8F3DC)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            const Text('Graphics Quality',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final preset in GraphicsQualityPreset.values)
-                  ChoiceChip(
-                    label: Text(preset.title),
-                    selected: game.graphicsQualityPreset == preset,
-                    onSelected: (_) => game.setGraphicsQualityPreset(preset),
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+                    ),
                   ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            _CompactSwitchRow(
-              title: 'Biology Resource Pack',
-              value: game.biologyResourcePackEnabled,
-              onChanged: game.setBiologyResourcePackEnabled,
-            ),
-            _CompactSwitchRow(
-              title: 'VSync Pacing',
-              value: game.vSyncPacingEnabled,
-              onChanged: game.setVSyncPacingEnabled,
-            ),
-            _CompactSwitchRow(
-              title: 'Auto Scaling',
-              value: game.autoPerformanceScalingEnabled,
-              onChanged: game.setAutoPerformanceScalingEnabled,
-            ),
-            const Spacer(),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Caps: ${game.maxActiveEnemies} enemies / ${game.maxActivePlayerProjectiles} shots',
-                    style: const TextStyle(fontSize: 11, color: Colors.white70),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: accent.withValues(alpha: 0.30)),
+                    ),
+                    child: const Text(
+                      '30 second rounds',
+                      style: TextStyle(
+                        color: accent,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   ),
+                ],
+              ),
+              SizedBox(height: compact ? 6 : 10),
+              Expanded(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildCourseStepCard(
+                        icon: Icons.auto_awesome_rounded,
+                        title: 'Draft',
+                        body: 'Pick one mini-weapon before the run starts.',
+                        accent: accent,
+                        compact: compact,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildCourseStepCard(
+                        icon: Icons.bolt_rounded,
+                        title: 'Survive',
+                        body: 'Clear each wave and earn one weapon upgrade.',
+                        accent: const Color(0xFFFFD166),
+                        compact: compact,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildCourseStepCard(
+                        icon: Icons.psychology_alt_rounded,
+                        title: 'Boss Gate',
+                        body: 'Beat the boss, unlock a mutation, then learn.',
+                        accent: const Color(0xFFFF8C42),
+                        compact: compact,
+                      ),
+                    ),
+                  ],
                 ),
-                TextButton(
-                  onPressed: () => _openSettingsDialog(context),
-                  child: const Text('More'),
+              ),
+              if (!compact) ...[
+                const SizedBox(height: 8),
+                const Text(
+                  'Main actions stay here. Deeper options open only when you need them.',
+                  style: TextStyle(fontSize: 12, color: Colors.white70),
                 ),
               ],
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildCourseStepCard({
+    required IconData icon,
+    required String title,
+    required String body,
+    required Color accent,
+    bool compact = false,
+  }) {
+    return Container(
+      padding: EdgeInsets.all(compact ? 8 : 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.045),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: accent.withValues(alpha: 0.18)),
+      ),
+      child: Column(
+        mainAxisAlignment:
+            compact ? MainAxisAlignment.center : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: accent, size: compact ? 18 : 22),
+          SizedBox(height: compact ? 4 : 6),
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: compact ? 12 : 13,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          if (!compact) ...[
+            const SizedBox(height: 3),
+            Text(
+              body,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 11, color: Colors.white70),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHomeHubPanel(BuildContext context) {
+    return Column(
+      children: [
+        Expanded(
+          flex: 3,
+          child: Row(
+            children: [
+              Expanded(child: _buildSettingsSummaryPanel(context)),
+              const SizedBox(width: 12),
+              Expanded(child: _buildCharacterSummaryPanel(context)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Expanded(flex: 2, child: _buildModeStrip(context)),
+        const SizedBox(height: 12),
+        _buildHomeDesignNote(),
+      ],
+    );
+  }
+
+  Widget _buildSettingsSummaryPanel(BuildContext context) {
+    const accent = Color(0xFF2EC4B6);
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: () => _openSettingsDialog(context),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.speed_rounded, color: accent),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Performance Settings',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                  Icon(Icons.chevron_right_rounded,
+                      color: accent.withValues(alpha: 0.86)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _buildSummaryLine(
+                'Graphics',
+                '${game.graphicsQualityLabel} quality',
+              ),
+              _buildSummaryLine(
+                'Biology Resource Pack',
+                game.visualResourcePackLabel,
+              ),
+              _buildSummaryLine(
+                'Frame pacing',
+                game.framePacingLabel,
+              ),
+              const Spacer(),
+              Text(
+                game.currentFps <= 0
+                    ? 'Open settings to tune graphics and effects.'
+                    : '${game.currentFps.round()} FPS now. Open settings to tune graphics and effects.',
+                style: const TextStyle(fontSize: 11, color: Colors.white70),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${game.maxActiveEnemies} enemies / ${game.maxActivePlayerProjectiles} shots',
+                      style:
+                          const TextStyle(fontSize: 11, color: Colors.white70),
+                    ),
+                  ),
+                  const Text(
+                    'Open',
+                    style: TextStyle(
+                      color: accent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSummaryLine(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12, color: Colors.white60),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHomeDesignNote() {
+    return SizedBox(
+      height: 126,
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2EC4B6).withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: const Color(0xFF2EC4B6).withValues(alpha: 0.28),
+                  ),
+                ),
+                child: const Icon(Icons.dashboard_customize_rounded,
+                    color: Color(0xFF2EC4B6)),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Cleaner Home',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Advanced options are tucked into focused pages so the launcher stays fast to scan.',
+                      style: TextStyle(fontSize: 12, color: Colors.white70),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -8654,13 +8839,14 @@ class TitleOverlay extends StatelessWidget {
                       style:
                           TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
                 ),
-                Text('${game.researchPoints} Research Points',
-                    style: const TextStyle(
-                        fontSize: 12,
-                        color: accent,
-                        fontWeight: FontWeight.w800)),
               ],
             ),
+            const SizedBox(height: 5),
+            Text('${game.researchPoints} Research Points',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    fontSize: 12, color: accent, fontWeight: FontWeight.w800)),
             const SizedBox(height: 8),
             Text(
               game.selectedCharacterFrame.title,
@@ -8975,52 +9161,84 @@ class TitleOverlay extends StatelessWidget {
   }
 
   Widget _buildVisualPackToggle(Color accent) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.035),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: accent.withValues(alpha: 0.24)),
-      ),
-      child: Row(
+    Widget iconBox() {
+      return Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: accent.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: accent.withValues(alpha: 0.34)),
+        ),
+        child: Icon(Icons.biotech_rounded, color: accent),
+      );
+    }
+
+    Widget copy() {
+      return const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: accent.withValues(alpha: 0.34)),
-            ),
-            child: Icon(Icons.biotech_rounded, color: accent),
+          Text(
+            'Biology Resource Pack',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
           ),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Biology Resource Pack',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-                ),
-                SizedBox(height: 3),
-                Text(
-                  'Optional microscope-style enemies, bosses, and arena details.',
-                  style: TextStyle(fontSize: 12, color: Colors.white70),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          Switch.adaptive(
-            value: game.biologyResourcePackEnabled,
-            activeThumbColor: accent,
-            activeTrackColor: accent.withValues(alpha: 0.34),
-            onChanged: game.setBiologyResourcePackEnabled,
+          SizedBox(height: 3),
+          Text(
+            'Optional microscope-style enemies, bosses, and arena details.',
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 12, color: Colors.white70),
           ),
         ],
-      ),
+      );
+    }
+
+    Widget toggle() {
+      return Switch.adaptive(
+        value: game.biologyResourcePackEnabled,
+        activeThumbColor: accent,
+        activeTrackColor: accent.withValues(alpha: 0.34),
+        onChanged: game.setBiologyResourcePackEnabled,
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 430;
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.035),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: accent.withValues(alpha: 0.24)),
+          ),
+          child: narrow
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        iconBox(),
+                        const Spacer(),
+                        toggle(),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    copy(),
+                  ],
+                )
+              : Row(
+                  children: [
+                    iconBox(),
+                    const SizedBox(width: 12),
+                    Expanded(child: copy()),
+                    const SizedBox(width: 10),
+                    toggle(),
+                  ],
+                ),
+        );
+      },
     );
   }
 
@@ -9471,43 +9689,6 @@ class _QuickMetric extends StatelessWidget {
   }
 }
 
-class _CompactSwitchRow extends StatelessWidget {
-  const _CompactSwitchRow({
-    required this.title,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final String title;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 34,
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-            ),
-          ),
-          Switch.adaptive(
-            value: value,
-            activeThumbColor: const Color(0xFF2EC4B6),
-            activeTrackColor: const Color(0x552EC4B6),
-            onChanged: onChanged,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _SettingsSwitchRow extends StatelessWidget {
   const _SettingsSwitchRow({
     required this.title,
@@ -9695,40 +9876,6 @@ class _TitleBackdropPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _TitleBackdropPainter oldDelegate) =>
       oldDelegate.biologyPackEnabled != biologyPackEnabled;
-}
-
-class _HeroChip extends StatelessWidget {
-  const _HeroChip({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0x1AFFFFFF),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0x3348E5C2)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: const Color(0xFFBDEDE5)),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFFEFFCF7),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _LauncherMetric extends StatelessWidget {
