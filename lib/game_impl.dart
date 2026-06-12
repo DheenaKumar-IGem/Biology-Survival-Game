@@ -8653,9 +8653,7 @@ class TitleOverlay extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        Expanded(flex: 2, child: _buildModeStrip(context)),
-        const SizedBox(height: 12),
-        _buildHomeDesignNote(),
+        Expanded(flex: 3, child: _buildModeStrip(context)),
       ],
     );
   }
@@ -8757,53 +8755,6 @@ class TitleOverlay extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildHomeDesignNote() {
-    return SizedBox(
-      height: 126,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2EC4B6).withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: const Color(0xFF2EC4B6).withValues(alpha: 0.28),
-                  ),
-                ),
-                child: const Icon(Icons.dashboard_customize_rounded,
-                    color: Color(0xFF2EC4B6)),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Cleaner Home',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Advanced options are tucked into focused pages so the launcher stays fast to scan.',
-                      style: TextStyle(fontSize: 12, color: Colors.white70),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
