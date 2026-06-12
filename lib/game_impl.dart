@@ -8004,20 +8004,6 @@ class HudOverlay extends StatelessWidget {
                                 const AlwaysStoppedAnimation(Color(0xFF80FFDB)),
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Mini-weapon build only',
-                          style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFFD8F3DC)),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Mini-weapons ${game.equippedMiniWeapons.length}/${game.maxMiniWeaponSlots}  -  Passives ${game.passiveSlotsUsed}/4',
-                          style: const TextStyle(
-                              fontSize: 10, color: Colors.white70),
-                        ),
                         if (game.isDeveloperMode) ...[
                           const SizedBox(height: 8),
                           Container(
