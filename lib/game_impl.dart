@@ -1592,6 +1592,9 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
     if (roundPhase == RoundFlowPhase.cleanup) {
       return;
     }
+    if (fromBoss) {
+      _clearBossSpawnedEnemies();
+    }
     roundComplete = true;
     roundsCleared += 1;
     cleanupCollectOnly = true;
@@ -1607,6 +1610,14 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
             : 'Round clear - collect quickly',
         duration: 1.8);
     notifyUi();
+  }
+
+  void _clearBossSpawnedEnemies() {
+    for (final enemy in enemyRegistry.toList()) {
+      if (enemy.spawnedByBoss) {
+        enemy.removeFromParent();
+      }
+    }
   }
 
   void _restorePersistedState(SharedPreferences prefs) {
@@ -2683,6 +2694,7 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
     bool canDropPickup = true,
     int splitGeneration = 0,
     bool enhancedWeaver = false,
+    bool spawnedByBoss = false,
   }) {
     if (enemyRegistry.length >= maxActiveEnemies) {
       return false;
@@ -2753,6 +2765,7 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
         canDropPickup: canDropPickup,
         splitGeneration: effectiveSplitGeneration,
         enhancedWeaver: enhancedWeaver,
+        spawnedByBoss: spawnedByBoss,
       ),
     );
     return true;
@@ -2776,6 +2789,7 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
         rewardCoins: 0,
         canDropPickup: false,
         enhancedWeaver: true,
+        spawnedByBoss: true,
       )) {
         enemiesSpawnedThisRound += 1;
       }
@@ -2803,6 +2817,7 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
         rewardCoins: 0,
         canDropPickup: false,
         splitGeneration: archetype == EnemyArchetype.splitter ? 1 : 0,
+        spawnedByBoss: true,
       )) {
         enemiesSpawnedThisRound += 1;
       }
@@ -2821,6 +2836,7 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
         forcedSpeed: 150 + currentRound * 1.2,
         rewardCoins: 0,
         canDropPickup: false,
+        spawnedByBoss: enemy.spawnedByBoss,
       )) {
         enemiesSpawnedThisRound += 1;
       }
@@ -3058,6 +3074,9 @@ class SquareShooterGame extends FlameGame with KeyboardEvents {
   }
 
   int _sampleValueForEnemy(EnemyComponent enemy) {
+    if (roundPhase == RoundFlowPhase.bossFight || enemy.spawnedByBoss) {
+      return 0;
+    }
     if (enemy.enhancedWeaver) {
       return 3;
     }
@@ -4886,6 +4905,7 @@ class EnemyComponent extends PositionComponent
     required this.canDropPickup,
     required this.splitGeneration,
     this.enhancedWeaver = false,
+    this.spawnedByBoss = false,
   }) : _maxHealth = health;
 
   final EnemyArchetype archetype;
@@ -4894,6 +4914,7 @@ class EnemyComponent extends PositionComponent
   final bool canDropPickup;
   final int splitGeneration;
   final bool enhancedWeaver;
+  final bool spawnedByBoss;
   final int _maxHealth;
   int health;
   double behaviorTimer = 0;
@@ -8167,64 +8188,11 @@ class TitleOverlay extends StatelessWidget {
                         const Color(0x1FC4F1BE),
                       ),
                     ),
-                    SingleChildScrollView(
-                      padding: const EdgeInsets.all(24),
+                    Padding(
+                      padding: const EdgeInsets.all(18),
                       child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          final compact = constraints.maxWidth < 880;
-                          final cardWidth = compact
-                              ? constraints.maxWidth
-                              : (constraints.maxWidth - 18) / 2;
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildHeroPanel(context, compact),
-                              const SizedBox(height: 22),
-                              Row(
-                                children: [
-                                  Text(
-                                    'Game Library',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .headlineMedium,
-                                  ),
-                                  const Spacer(),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF0D241F),
-                                      borderRadius: BorderRadius.circular(999),
-                                      border: Border.all(
-                                          color: const Color(0xFF1E5D52)),
-                                    ),
-                                    child: const Text(
-                                      'Professional Build',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700,
-                                        color: Color(0xFFBDEDE5),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 14),
-                              Wrap(
-                                spacing: 18,
-                                runSpacing: 18,
-                                children: [
-                                  for (final entry in launcherEntries)
-                                    SizedBox(
-                                      width: cardWidth,
-                                      child: _buildLauncherCard(
-                                          context, entry, compact),
-                                    ),
-                                ],
-                              ),
-                            ],
-                          );
-                        },
+                        builder: (context, constraints) =>
+                            _buildDashboard(context, constraints),
                       ),
                     ),
                   ],
@@ -8234,6 +8202,53 @@ class TitleOverlay extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildDashboard(BuildContext context, BoxConstraints constraints) {
+    const designWidth = 1120.0;
+    const designHeight = 920.0;
+    return FittedBox(
+      fit: BoxFit.contain,
+      alignment: Alignment.topCenter,
+      child: SizedBox(
+        width: designWidth,
+        height: designHeight,
+        child: _buildWideDashboard(context),
+      ),
+    );
+  }
+
+  Widget _buildWideDashboard(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildHeroPanel(context, false),
+        const SizedBox(height: 14),
+        Expanded(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(flex: 5, child: _buildPrimaryPlayPanel(context)),
+              const SizedBox(width: 14),
+              Expanded(
+                flex: 4,
+                child: Column(
+                  children: [
+                    Expanded(
+                        flex: 5, child: _buildCompactSettingsPanel(context)),
+                    const SizedBox(height: 12),
+                    Expanded(
+                        flex: 3, child: _buildCharacterSummaryPanel(context)),
+                    const SizedBox(height: 12),
+                    Expanded(flex: 3, child: _buildModeStrip(context)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -8258,102 +8273,12 @@ class TitleOverlay extends StatelessWidget {
 
   Widget _buildHeroPanel(BuildContext context, bool compact) {
     final theme = Theme.of(context);
-    final heroText = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: const Color(0x1910BEB0),
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: const Color(0xFF1E5D52)),
-          ),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Charlotte - HS',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFFBDEDE5),
-                ),
-              ),
-              SizedBox(width: 8),
-              Text(
-                'Interactive Biology Collection',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF9FD9D2),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 18),
-        Text(
-          'Biology Game',
-          style: theme.textTheme.displayLarge,
-        ),
-        const SizedBox(height: 10),
-        const Text(
-          'A polished lesson-driven arena game with branching mini-weapons, boss checkpoints, and professional classroom-friendly presentation.',
-          style: TextStyle(fontSize: 17, height: 1.5, color: Color(0xFFD8F3DC)),
-        ),
-        const SizedBox(height: 18),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: const [
-            _HeroChip(icon: Icons.school_rounded, label: 'Lesson + quiz loop'),
-            _HeroChip(
-                icon: Icons.auto_awesome_rounded,
-                label: 'Unique weapon builds'),
-            _HeroChip(icon: Icons.save_rounded, label: 'Boss-gate checkpoints'),
-            _HeroChip(icon: Icons.tune_rounded, label: 'Difficulty options'),
-          ],
-        ),
-      ],
-    );
-
-    final heroStats = Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0x33132520),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFF28574E)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Current Build Snapshot',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFFBDEDE5),
-            ),
-          ),
-          const SizedBox(height: 12),
-          _heroStatRow('Selected difficulty', game.selectedDifficulty.title),
-          _heroStatRow(
-              'Checkpoint', game.hasSavedCheckpoint ? 'Available' : 'None'),
-          _heroStatRow('Research Points', '${game.researchPoints}'),
-          _heroStatRow('Character', game.selectedCharacterFrame.title),
-          _heroStatRow('Visual Pack', game.visualResourcePackLabel),
-          _heroStatRow('Graphics', game.graphicsQualityLabel),
-          _heroStatRow('Best course clear', '${game.bestCourseScore}'),
-          _heroStatRow('Best mastery score', '${game.bestMasteryScore}'),
-        ],
-      ),
-    );
-
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(26),
+      height: compact ? 140 : 190,
+      padding: EdgeInsets.all(compact ? 16 : 20),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(28),
         border: Border.all(color: const Color(0xFF235C52), width: 1.2),
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
@@ -8372,44 +8297,544 @@ class TitleOverlay extends StatelessWidget {
           ),
         ],
       ),
-      child: compact
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                heroText,
-                const SizedBox(height: 18),
-                heroStats,
-              ],
-            )
-          : Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(flex: 3, child: heroText),
-                const SizedBox(width: 22),
-                Expanded(flex: 2, child: heroStats),
-              ],
-            ),
-    );
-  }
-
-  Widget _heroStatRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(fontSize: 14, color: Colors.white70),
+              child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  color: const Color(0x1910BEB0),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: const Color(0xFF1E5D52)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Charlotte - HS',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFFBDEDE5),
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'Interactive Biology Collection',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF9FD9D2),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Biology Game',
+                style: theme.textTheme.displayLarge?.copyWith(
+                  fontSize: compact ? 42 : 52,
+                  height: 0.95,
+                ),
+              ),
+              if (!compact) ...[
+                const SizedBox(height: 6),
+                const Text(
+                  'Survive, learn, upgrade mini-weapons, and clear boss gates.',
+                  style: TextStyle(
+                    fontSize: 15,
+                    height: 1.25,
+                    color: Color(0xFFD8F3DC),
+                  ),
+                ),
+              ],
+            ],
+          )),
+          const SizedBox(width: 18),
+          SizedBox(
+            width: compact ? 250 : 360,
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _QuickMetric(
+                  label: 'Checkpoint',
+                  value: game.hasSavedCheckpoint ? 'Saved' : 'None',
+                ),
+                _QuickMetric(
+                  label: 'Research Points',
+                  value: '${game.researchPoints}',
+                ),
+                _QuickMetric(
+                  label: 'Graphics',
+                  value: game.graphicsQualityLabel,
+                ),
+                _QuickMetric(
+                  label: 'Visual Pack',
+                  value: game.visualResourcePackLabel,
+                ),
+                _QuickMetric(
+                  label: 'Character',
+                  value: game.selectedCharacterFrame.title,
+                ),
+              ],
             ),
           ),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFFF4FFF9),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPrimaryPlayPanel(BuildContext context, {bool compact = false}) {
+    const accent = Color(0xFF2EC4B6);
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+        padding: EdgeInsets.all(compact ? 16 : 20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color(0xFF102621),
+              accent.withValues(alpha: 0.12),
+              const Color(0xFF071713),
+            ],
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: accent.withValues(alpha: 0.42)),
+                  ),
+                  child: const Icon(Icons.biotech_rounded,
+                      color: accent, size: 28),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Biology Game',
+                          style: TextStyle(
+                              fontSize: 28, fontWeight: FontWeight.w900)),
+                      SizedBox(height: 2),
+                      Text('-Dheena Kumar',
+                          style:
+                              TextStyle(fontSize: 13, color: Colors.white70)),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: accent.withValues(alpha: 0.34)),
+                  ),
+                  child: const Text(
+                    'Professional Build',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: accent,
+                    ),
+                  ),
+                ),
+              ],
             ),
+            const SizedBox(height: 12),
+            const Text(
+              'A biology-themed survivor arena with lessons, boss gates, and buildcrafting.',
+              style: TextStyle(fontSize: 14, height: 1.35),
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _LauncherMetric(
+                  label: 'Checkpoint',
+                  value: game.hasSavedCheckpoint ? 'Saved' : 'None',
+                  accent: accent,
+                ),
+                _LauncherMetric(
+                  label: 'Course',
+                  value: '${game.bestCourseScore}',
+                  accent: accent,
+                ),
+                _LauncherMetric(
+                  label: 'Mastery',
+                  value: '${game.bestMasteryScore}',
+                  accent: accent,
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            const Text('Difficulty',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final difficulty in GameDifficulty.values)
+                  ChoiceChip(
+                    label: Text(difficulty.title),
+                    selected: game.selectedDifficulty == difficulty,
+                    onSelected: (_) => game.setSelectedDifficulty(difficulty),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Restart Game starts on ${game.selectedDifficulty.title}. Continue keeps the saved checkpoint difficulty.',
+              style: const TextStyle(fontSize: 12, color: Colors.white70),
+            ),
+            const Spacer(),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.icon(
+                  onPressed:
+                      game.hasSavedCheckpoint ? game.handleTitleStart : null,
+                  icon: const Icon(Icons.play_arrow_rounded),
+                  label: const Text('Continue'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: game.startFreshCourse,
+                  icon: const Icon(Icons.restart_alt_rounded),
+                  label: const Text('Restart Game'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: game.startInteractiveTutorial,
+                  icon: const Icon(Icons.sports_esports_rounded),
+                  label: const Text('Tutorial'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: game.openTutorial,
+                  icon: const Icon(Icons.menu_book_rounded),
+                  label: const Text('Detailed Tutorial'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: game.startDeveloperMode,
+                  icon: const Icon(Icons.science_rounded),
+                  label: const Text('Developer Mode'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: const [
+                _HeroChip(icon: Icons.school_rounded, label: 'Lesson + quiz'),
+                _HeroChip(
+                    icon: Icons.auto_awesome_rounded, label: 'Mini-weapons'),
+                _HeroChip(icon: Icons.save_rounded, label: 'Boss checkpoints'),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompactSettingsPanel(BuildContext context) {
+    const accent = Color(0xFF2EC4B6);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.speed_rounded, color: accent),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text('Performance Settings',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+                ),
+                Text(
+                  game.currentFps <= 0
+                      ? game.graphicsQualityLabel
+                      : '${game.currentFps.round()} FPS',
+                  style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFFD8F3DC)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            const Text('Graphics Quality',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final preset in GraphicsQualityPreset.values)
+                  ChoiceChip(
+                    label: Text(preset.title),
+                    selected: game.graphicsQualityPreset == preset,
+                    onSelected: (_) => game.setGraphicsQualityPreset(preset),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            _CompactSwitchRow(
+              title: 'Biology Resource Pack',
+              value: game.biologyResourcePackEnabled,
+              onChanged: game.setBiologyResourcePackEnabled,
+            ),
+            _CompactSwitchRow(
+              title: 'VSync Pacing',
+              value: game.vSyncPacingEnabled,
+              onChanged: game.setVSyncPacingEnabled,
+            ),
+            _CompactSwitchRow(
+              title: 'Auto Scaling',
+              value: game.autoPerformanceScalingEnabled,
+              onChanged: game.setAutoPerformanceScalingEnabled,
+            ),
+            const Spacer(),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Caps: ${game.maxActiveEnemies} enemies / ${game.maxActivePlayerProjectiles} shots',
+                    style: const TextStyle(fontSize: 11, color: Colors.white70),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => _openSettingsDialog(context),
+                  child: const Text('More'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCharacterSummaryPanel(BuildContext context) {
+    const accent = Color(0xFFFFD166);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.person_rounded, color: accent),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text('Character Frame',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+                ),
+                Text('${game.researchPoints} Research Points',
+                    style: const TextStyle(
+                        fontSize: 12,
+                        color: accent,
+                        fontWeight: FontWeight.w800)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              game.selectedCharacterFrame.title,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              _characterTraitText(game.selectedCharacterFrame),
+              style: const TextStyle(fontSize: 12, color: Colors.white70),
+            ),
+            const Spacer(),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton(
+                onPressed: () => _openCharacterFrameDialog(context),
+                child: const Text('Manage Frames'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModeStrip(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildModeTile(
+            context,
+            title: 'Blood Vessel Defense',
+            subtitle: 'Prototype tower defense',
+            icon: Icons.shield_rounded,
+            accent: const Color(0xFFFF8C42),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const BloodDefensePrototypeScreen(),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _buildModeTile(
+            context,
+            title: 'Coming Soon',
+            subtitle: 'Future game slot',
+            icon: Icons.science_rounded,
+            accent: const Color(0xFF8D99AE),
+            onPressed: () =>
+                _openLauncherDetails(context, launcherEntries.last),
+            actionLabel: 'Learn More',
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildModeTile(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color accent,
+    required VoidCallback onPressed,
+    String actionLabel = 'Play Prototype',
+  }) {
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: onPressed,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, color: accent, size: 22),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.w900)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 5),
+              Text(subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 11, color: Colors.white70)),
+              const Spacer(),
+              Text(actionLabel,
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: accent,
+                      fontWeight: FontWeight.w800)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openCharacterFrameDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Character Frame'),
+        content: SizedBox(
+          width: 520,
+          child: SingleChildScrollView(
+            child: _buildCharacterPicker(const Color(0xFFFFD166)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openSettingsDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Performance Settings'),
+        content: SizedBox(
+          width: 560,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildVisualPackToggle(const Color(0xFF2EC4B6)),
+                const SizedBox(height: 12),
+                _PerformanceSettingsPanel(
+                  game: game,
+                  accent: const Color(0xFF2EC4B6),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openLauncherDetails(BuildContext context, LauncherEntry entry) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        contentPadding: const EdgeInsets.all(14),
+        content: SizedBox(
+          width: 520,
+          child: _buildLauncherCard(context, entry, true),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
           ),
         ],
       ),
@@ -8997,6 +9422,85 @@ class _PerformanceSettingsPanel extends StatelessWidget {
             value: game.fpsMeterVisible,
             accent: accent,
             onChanged: game.setFpsMeterVisible,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickMetric extends StatelessWidget {
+  const _QuickMetric({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 168,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.055),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 10, color: Colors.white70),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompactSwitchRow extends StatelessWidget {
+  const _CompactSwitchRow({
+    required this.title,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String title;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 34,
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+            ),
+          ),
+          Switch.adaptive(
+            value: value,
+            activeThumbColor: const Color(0xFF2EC4B6),
+            activeTrackColor: const Color(0x552EC4B6),
+            onChanged: onChanged,
           ),
         ],
       ),
