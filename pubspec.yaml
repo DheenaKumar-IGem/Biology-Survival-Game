@@ -126,8 +126,8 @@ flutter_launcher_icons:
     icon_size: 48
 
 # Native OS launch screen (run: dart run flutter_native_splash:create).
-# Web is disabled on purpose - the app ships its own animated biomarker-scanner
-# loading screen (lib/ui/screens/loading_screen.dart) for the web target.
+# Web is disabled on purpose - the app ships its own HTML boot loader plus the
+# animated biomarker-scanner screen in lib/ui/screens/loading_screen.dart.
 flutter_native_splash:
   color: "#071019"
   image: assets/branding/app_icon_foreground.png

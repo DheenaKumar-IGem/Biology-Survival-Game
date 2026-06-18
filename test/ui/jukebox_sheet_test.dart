@@ -33,9 +33,9 @@ void main() {
     await tester.pumpAndSettle();
 
     // The bundled tracks and the Off entry are all listed.
-    expect(find.text('Bloodstream Drift'), findsOneWidget);
-    expect(find.text('Immune Calm'), findsOneWidget);
-    expect(find.text('Deep Current'), findsOneWidget);
+    expect(find.text('Serum Skyline'), findsOneWidget);
+    expect(find.text('Antibody Aurora'), findsOneWidget);
+    expect(find.text('Abyssal Current'), findsOneWidget);
     expect(find.text('Off (silence)'), findsOneWidget);
 
     // Selecting "Off" sets the track id to empty (no music).
@@ -44,7 +44,7 @@ void main() {
     expect(SettingsService.instance.value.musicTrackId, '');
 
     // Selecting a real track persists its asset id and live-switches.
-    await tester.tap(find.text('Deep Current'));
+    await tester.tap(find.text('Abyssal Current'));
     await tester.pumpAndSettle();
     expect(
       SettingsService.instance.value.musicTrackId,

@@ -22,20 +22,19 @@ class MusicTrack {
   /// [discoverMusicTracks] picks it up automatically; adding it here too just
   /// guarantees a nice label and ordering.
   static const List<MusicTrack> bundled = [
-    MusicTrack(id: 'music/bloodstream_drift.wav', label: 'Bloodstream Drift'),
-    MusicTrack(id: 'music/immune_calm.wav', label: 'Immune Calm'),
-    MusicTrack(id: 'music/deep_current.wav', label: 'Deep Current'),
+    MusicTrack(id: 'music/bloodstream_drift.wav', label: 'Serum Skyline'),
+    MusicTrack(id: 'music/immune_calm.wav', label: 'Antibody Aurora'),
+    MusicTrack(id: 'music/deep_current.wav', label: 'Abyssal Current'),
   ];
 
   @override
-  bool operator ==(Object other) =>
-      other is MusicTrack && other.id == id;
+  bool operator ==(Object other) => other is MusicTrack && other.id == id;
 
   @override
   int get hashCode => id.hashCode;
 }
 
-/// Title-cases a filename stem: `bloodstream_drift` -> `Bloodstream Drift`.
+/// Title-cases a filename stem: `example_track` -> `Example Track`.
 String _labelFromFile(String fileStem) {
   return fileStem
       .split(RegExp(r'[_\-\s]+'))
@@ -63,7 +62,9 @@ Future<List<MusicTrack>> discoverMusicTracks() async {
         tracks.add(
           MusicTrack(
             id: id,
-            label: _labelFromFile(key.substring(prefix.length).split('.').first),
+            label: _labelFromFile(
+              key.substring(prefix.length).split('.').first,
+            ),
           ),
         );
       }

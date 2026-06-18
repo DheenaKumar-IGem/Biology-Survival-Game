@@ -32,8 +32,174 @@
 
   <title>PDAC Immune Defense</title>
   <link rel="manifest" href="manifest.json">
+  <style>
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      background: #071019;
+      overflow: hidden;
+    }
+
+    #boot-loader {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: grid;
+      place-items: center;
+      background:
+        linear-gradient(180deg, rgba(7, 16, 25, 0.96), rgba(12, 31, 45, 0.96)),
+        repeating-linear-gradient(
+          0deg,
+          rgba(79, 209, 255, 0.06) 0,
+          rgba(79, 209, 255, 0.06) 1px,
+          transparent 1px,
+          transparent 48px
+        );
+      color: #eef7ff;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      transition: opacity 280ms ease;
+    }
+
+    #boot-loader.boot-hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .boot-panel {
+      width: min(460px, calc(100vw - 40px));
+      text-align: center;
+    }
+
+    .boot-scanner {
+      width: 112px;
+      height: 112px;
+      margin: 0 auto 24px;
+      border: 2px solid rgba(79, 209, 255, 0.42);
+      border-radius: 50%;
+      position: relative;
+      box-shadow: 0 0 34px rgba(79, 209, 255, 0.18);
+    }
+
+    .boot-scanner::before,
+    .boot-scanner::after {
+      content: "";
+      position: absolute;
+      inset: 16px;
+      border-radius: 50%;
+      border: 1px solid rgba(168, 224, 255, 0.28);
+    }
+
+    .boot-scanner::after {
+      inset: 34px;
+      background: rgba(79, 209, 255, 0.16);
+      border-color: rgba(79, 209, 255, 0.5);
+    }
+
+    .boot-sweep {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 46%;
+      height: 2px;
+      background: linear-gradient(90deg, rgba(79, 209, 255, 0), #4fd1ff);
+      transform-origin: left center;
+      animation: boot-spin 1.8s linear infinite;
+    }
+
+    .boot-title {
+      margin: 0;
+      font-size: 44px;
+      letter-spacing: 0;
+      line-height: 0.96;
+      font-weight: 800;
+    }
+
+    .boot-title span {
+      color: #d6a84f;
+    }
+
+    .boot-status {
+      margin: 12px 0 22px;
+      color: #b7ccda;
+      font-size: 15px;
+    }
+
+    .boot-bar {
+      height: 8px;
+      overflow: hidden;
+      border-radius: 4px;
+      background: rgba(168, 224, 255, 0.15);
+    }
+
+    .boot-bar span {
+      display: block;
+      width: 38%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #4fd1ff, #d6a84f);
+      animation: boot-slide 1.5s ease-in-out infinite alternate;
+    }
+
+    @keyframes boot-spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes boot-slide {
+      from {
+        transform: translateX(0);
+      }
+      to {
+        transform: translateX(164%);
+      }
+    }
+
+    @media (max-width: 520px) {
+      .boot-title {
+        font-size: 32px;
+      }
+    }
+  </style>
 </head>
 <body>
+  <div id="boot-loader" role="status" aria-live="polite">
+    <div class="boot-panel">
+      <div class="boot-scanner" aria-hidden="true">
+        <div class="boot-sweep"></div>
+      </div>
+      <h1 class="boot-title"><span>PDAC</span> IMMUNE DEFENSE</h1>
+      <p class="boot-status">Loading biomarker defense systems...</p>
+      <div class="boot-bar" aria-hidden="true"><span></span></div>
+    </div>
+  </div>
+  <noscript>
+    <style>
+      #boot-loader .boot-status::after {
+        content: " JavaScript is required to play.";
+      }
+    </style>
+  </noscript>
+  <script>
+    (function () {
+      function dismissBootLoader() {
+        var loader = document.getElementById('boot-loader');
+        if (!loader) return;
+        loader.classList.add('boot-hidden');
+        window.setTimeout(function () {
+          if (loader.parentNode) loader.parentNode.removeChild(loader);
+        }, 320);
+      }
+
+      window.addEventListener('flutter-first-frame', dismissBootLoader);
+      window.setTimeout(function () {
+        if (document.querySelector('flt-glass-pane, flutter-view')) {
+          dismissBootLoader();
+        }
+      }, 8000);
+    })();
+  </script>
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader
