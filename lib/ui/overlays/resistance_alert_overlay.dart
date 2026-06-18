@@ -210,7 +210,7 @@ class _ResistanceAlertCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${alert.weaponName}  ·  $status',
+                    '${alert.weaponName} - $status',
                     textAlign: TextAlign.center,
                     style: AppTypography.bodyStrong.copyWith(
                       color: AppPalette.textPrimary,

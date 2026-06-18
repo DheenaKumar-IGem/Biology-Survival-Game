@@ -77,7 +77,11 @@ class CollisionResolver {
     // contact (even a shielded 0-damage chip) so firing the wrong weapon at a
     // mob builds resistance, while correctly-matched fire never does. Uses the
     // per-target [matched] flag, not whether damage got through.
-    game.recordWeaponHit(bullet.weaponId, matched: matched);
+    game.recordWeaponHit(
+      bullet.weaponId,
+      matched: matched,
+      targetCategory: mob.def.category,
+    );
     game.spawnDamageNumber(mob.position, dealt, matched);
 
     if (matched) {

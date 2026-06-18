@@ -3,13 +3,13 @@ for the in-game jukebox.
 
 Everything here is synthesized from scratch (Python stdlib only), so the output
 is original work with no third-party copyright. Each track is a calm ambient
-pad (drone + soft harmonics with a slow tremolo) plus a sparse, gently-decaying
-pluck melody.
+pad (drone + soft harmonics with a slow tremolo) plus a sparse, softly-faded
+bell melody.
 
 Seamless looping trick: every oscillator frequency is quantized so it completes
 a WHOLE number of cycles over the loop length, so the waveform phase is
-continuous at the wrap point (no click). Melody notes are only placed where
-their short decay finishes before the loop boundary, so they're silent there.
+continuous at the wrap point. Melody notes are only placed where their decay
+and release finish before the loop boundary, so they're silent there.
 
 Run:  python tools/generate_music.py
 Output: assets/audio/music/*.wav
@@ -20,7 +20,7 @@ import math
 import os
 import wave
 
-SR = 22050  # sample rate (ambient pads don't need 44.1k; keeps the web build lean)
+SR = 44100
 OUT_DIR = os.path.join("assets", "audio", "music")
 
 TWO_PI = 2 * math.pi
@@ -33,8 +33,35 @@ def quantized(freq, length):
     return cycles / length
 
 
+def smoothstep(x):
+    x = max(0.0, min(1.0, x))
+    return x * x * (3.0 - 2.0 * x)
+
+
+def bell_envelope(t, duration, attack=0.12, release=0.55, decay_rate=1.7):
+    """Click-free bell envelope with a gentle attack and guaranteed release."""
+    if t < 0.0 or t >= duration:
+        return 0.0
+    attack_env = smoothstep(t / attack) if attack > 0 else 1.0
+    release_env = smoothstep((duration - t) / release) if release > 0 else 1.0
+    return attack_env * release_env * math.exp(-t * decay_rate)
+
+
+def lowpass(samples, cutoff_hz=3600.0):
+    """One-pole low-pass filter to remove brittle edges from synthesized tones."""
+    rc = 1.0 / (TWO_PI * cutoff_hz)
+    dt = 1.0 / SR
+    alpha = dt / (rc + dt)
+    out = []
+    y = 0.0
+    for x in samples:
+        y += alpha * (x - y)
+        out.append(y)
+    return out
+
+
 def render(length, root, harmonics, lfo_hz, melody, bpm,
-           drone_amp=0.20, mel_amp=0.16, decay=1.0):
+           drone_amp=0.12, mel_amp=0.045, decay=1.8, master_gain=0.80):
     n = int(SR * length)
     out = [0.0] * n
 
@@ -53,7 +80,7 @@ def render(length, root, harmonics, lfo_hz, melody, bpm,
             s += a * math.sin(TWO_PI * f * t)
         out[i] = s
 
-    # --- Melody: sparse decaying plucks ------------------------------------
+    # --- Melody: sparse, softly-faded bell tones ---------------------------
     if melody:
         step = 60.0 / bpm  # one note slot per beat
         t0 = 0.0
@@ -67,17 +94,21 @@ def render(length, root, harmonics, lfo_hz, melody, bpm,
                     if start + j >= n:
                         break
                     tt = j / SR
-                    env = math.exp(-tt * 4.0)
-                    # absolute-time phase keeps it continuous at the loop wrap
-                    out[start + j] += mel_amp * env * math.sin(
-                        TWO_PI * f * (t0 + tt))
+                    env = bell_envelope(tt, decay)
+                    # Local-time phase starts every bell at zero amplitude,
+                    # avoiding the hard note-on discontinuity that reads as
+                    # static in browser playback.
+                    fundamental = math.sin(TWO_PI * f * tt)
+                    octave = 0.18 * math.sin(TWO_PI * f * 2.0 * tt)
+                    out[start + j] += mel_amp * env * (fundamental + octave)
             idx += 1
             t0 += step
 
-    # --- Normalize + soft clip ---------------------------------------------
+    # --- Smooth, normalize + soft clip --------------------------------------
+    out = lowpass(out)
     peak = max(1e-6, max(abs(x) for x in out))
-    gain = 0.92 / peak if peak > 0.92 else 1.0
-    return [math.tanh(x * gain) for x in out]
+    gain = 0.70 / peak if peak > 0.70 else 1.0
+    return [math.tanh(x * gain) * master_gain for x in out]
 
 
 def write_wav(name, samples):
@@ -97,22 +128,22 @@ C2_, G2_, C3b, G3_, C4b, D4b, E4b, G4b = 65.41, 98.0, 130.81, 196.0, 261.63, 293
 E2_, B2_, E3b, B3_, E4c, Gs4 = 82.41, 123.47, 164.81, 246.94, 329.63, 415.30
 
 TRACKS = {
-    # Calm default: warm A-minor pad, soft pentatonic plucks.
+    # Calm default: warm A-minor pad, soft pentatonic bell tones.
     "bloodstream_drift.wav": dict(
-        length=28, root=A2, harmonics=[(1.5, 0.12), (2.0, 0.09), (1.2, 0.06)],
-        lfo_hz=0.07, bpm=58, decay=1.2,
+        length=28, root=A2, harmonics=[(1.5, 0.055), (2.0, 0.040), (1.2, 0.030)],
+        lfo_hz=0.07, bpm=46, decay=2.4,
         melody=[A3, None, C4, None, E4, None, D4, None, None, None, A3, None],
     ),
     # Gentle, slightly brighter C-major drift.
     "immune_calm.wav": dict(
-        length=26, root=C3b, harmonics=[(1.5, 0.11), (2.0, 0.08), (1.25, 0.06)],
-        lfo_hz=0.05, bpm=64, decay=1.1,
+        length=26, root=C3b, harmonics=[(1.5, 0.050), (2.0, 0.035), (1.25, 0.026)],
+        lfo_hz=0.05, bpm=50, decay=2.2, mel_amp=0.040,
         melody=[C4b, None, E4b, None, G4b, None, None, D4b, None, None],
     ),
     # Minimal, darker ambient drone with rare bell tones.
     "deep_current.wav": dict(
-        length=30, root=E2_, harmonics=[(1.5, 0.12), (2.0, 0.08)],
-        lfo_hz=0.04, bpm=50, decay=1.6, mel_amp=0.12,
+        length=30, root=E2_, harmonics=[(1.5, 0.055), (2.0, 0.032)],
+        lfo_hz=0.04, bpm=40, decay=2.8, mel_amp=0.034,
         melody=[E4c, None, None, None, B3_, None, None, None, Gs4, None, None, None, None, None],
     ),
 }

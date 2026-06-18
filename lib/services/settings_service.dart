@@ -141,7 +141,7 @@ class SettingsData {
     this.screenShakeEnabled = true,
     this.colorContrastBoost = 0.0,
     this.reduceMotion = false,
-    this.musicVolume = 0.6,
+    this.musicVolume = 0.35,
     this.sfxVolume = 0.8,
     this.smartAimEnabled = false,
     this.touchControlsMode = TouchControlsMode.auto,
@@ -343,7 +343,7 @@ class SettingsData {
       reduceMotion: _boolSetting(json['reduceMotion'], false),
       musicVolume: _doubleSetting(
         json['musicVolume'],
-        fallback: 0.6,
+        fallback: 0.35,
         min: 0.0,
         max: 1.0,
       ),

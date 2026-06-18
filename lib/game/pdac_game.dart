@@ -177,6 +177,19 @@ Set<PdacKey> movementKeysFor(Set<LogicalKeyboardKey> keysPressed) {
   return keys;
 }
 
+/// True when the current combat loadout contains at least one weapon that can
+/// match [category]. Used so wrong-target resistance only builds when the
+/// player had a real swap available.
+bool loadoutCanMatchCategory(
+  Iterable<String> weaponIds,
+  ImmuneCategory category,
+) {
+  for (final id in weaponIds) {
+    if (WeaponCatalog.all[id]?.category == category) return true;
+  }
+  return false;
+}
+
 /// Top-level [FlameGame] for PDAC Immune Defense.
 ///
 /// Owns the round loop / state machine ([phase]), the arena, the player,
@@ -923,16 +936,21 @@ class PdacGame extends FlameGame with KeyboardEvents, MouseMovementDetector {
   /// Resistance builds from MISMATCHED (wrong-color) hits only - matched fire
   /// never contributes - so the lesson "fire the color that matches" is what
   /// keeps a weapon effective.
-  void recordWeaponHit(String weaponId, {required bool matched}) {
+  void recordWeaponHit(
+    String weaponId, {
+    required bool matched,
+    ImmuneCategory? targetCategory,
+  }) {
     if (tutorial || phase.value != RoundPhase.playing) return;
 
     // Fairness: a wrong-color hit only builds resistance if the player COULD
-    // have matched. When no live mob of this weapon's category is on screen,
-    // auto-aim was forced onto an off-color target and the player can't swap to
-    // a color that isn't present - so that unavoidable mismatch shouldn't count.
+    // have matched the target by swapping to another loadout weapon. If a
+    // special mode ever leaves the player without the target category, that
+    // unavoidable mismatch should not count.
     if (!matched) {
-      final category = WeaponCatalog.all[weaponId]?.category;
-      if (category != null && !hasLiveMobOfCategory(category)) return;
+      if (targetCategory != null && !_loadoutCanMatchCategory(targetCategory)) {
+        return;
+      }
     }
 
     final event = weaponResistance.recordHit(weaponId, matched: matched);
@@ -965,6 +983,10 @@ class PdacGame extends FlameGame with KeyboardEvents, MouseMovementDetector {
       if (!mob.isDead && mob.def.category == category) return true;
     }
     return false;
+  }
+
+  bool _loadoutCanMatchCategory(ImmuneCategory category) {
+    return loadoutCanMatchCategory(gameState.equippedWeapons, category);
   }
 
   /// Shows the resistance banner (every event) and, rate-limited by a cooldown

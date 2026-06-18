@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pdac_immune_defense/data/categories.dart';
 import 'package:pdac_immune_defense/data/rounds/round_catalog.dart';
+import 'package:pdac_immune_defense/data/weapons/weapon_catalog.dart';
 import 'package:pdac_immune_defense/game/pdac_game.dart';
 
 /// Guards the teaching flow: boss rounds plus the KRAS/saliva caveat units use
@@ -117,6 +119,29 @@ void main() {
         clearedRoundCompletesRun: true,
       ),
       isNull,
+    );
+  });
+
+  test('resistance fairness checks the target category against the loadout', () {
+    expect(
+      WeaponCatalog.all['pistol']!.category,
+      ImmuneCategory.innate,
+      reason: 'The test uses pistol as the current wrong-color weapon.',
+    );
+    expect(
+      loadoutCanMatchCategory(
+        WeaponCatalog.startingLoadout,
+        ImmuneCategory.antibody,
+      ),
+      isTrue,
+      reason:
+          'Wrong-color pistol hits on an antibody target should count because '
+          'the starting loadout includes Antibody Spray as the correct swap.',
+    );
+    expect(
+      loadoutCanMatchCategory(['pistol'], ImmuneCategory.antibody),
+      isFalse,
+      reason: 'Unavoidable mismatches should stay exempt.',
     );
   });
 }
