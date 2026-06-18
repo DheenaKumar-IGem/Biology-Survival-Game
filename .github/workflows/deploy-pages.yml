@@ -30,9 +30,6 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Export web lesson cache
-        run: flutter test tool/export_lesson_cache_test.dart
-
       - name: Build web app
         run: flutter build web --release --base-href /Biology-Survival-Game/
 
