@@ -1,29 +1,40 @@
 {
-  "name": "Charlotte - HS",
-  "short_name": "Charlotte - HS",
-  "start_url": ".",
-  "display": "standalone",
-  "background_color": "#0A1020",
-  "theme_color": "#0A1020",
-  "description": "A Flutter and Flame educational shooter with biology and pancreatic cancer questions.",
-  "orientation": "portrait",
-  "prefer_related_applications": false,
-  "icons": [
-    {
-      "src": "icons/Icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "icons/Icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    },
-    {
-      "src": "icons/Icon-maskable-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
-  ]
+    "name": "PDAC Immune Defense",
+    "short_name": "PDAC Defense",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#0E1E2E",
+    "theme_color": "#4FD1FF",
+    "description": "An educational survival game about immune defense, pancreatic cancer, and saliva-based biomarker research.",
+    "orientation": "landscape",
+    "categories": [
+        "education",
+        "games",
+        "medical"
+    ],
+    "prefer_related_applications": false,
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
 }
