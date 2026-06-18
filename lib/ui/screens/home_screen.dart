@@ -47,18 +47,21 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
     }
     if (!PersistenceService.instance.tutorialSeen) {
-      unawaited(
-        AudioService.instance.playCurrentMusicFromUserGesture(),
-      );
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => GameScreen(
-            persistence: PersistenceService.instance,
-            tutorial: true,
-          ),
-        ),
-      );
+      await _startTutorial();
     }
+  }
+
+  Future<void> _startTutorial() async {
+    unawaited(AudioService.instance.playCurrentMusicFromUserGesture());
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => GameScreen(
+          persistence: PersistenceService.instance,
+          tutorial: true,
+        ),
+      ),
+    );
+    if (mounted) setState(() {});
   }
 
   Future<void> _continueRun() async {
@@ -67,9 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
       await _startNewRun();
       return;
     }
-    unawaited(
-      AudioService.instance.playCurrentMusicFromUserGesture(),
-    );
+    unawaited(AudioService.instance.playCurrentMusicFromUserGesture());
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => GameScreen(
@@ -83,9 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _startNewRun() async {
     await PersistenceService.instance.clearCheckpoint();
-    unawaited(
-      AudioService.instance.playCurrentMusicFromUserGesture(),
-    );
+    unawaited(AudioService.instance.playCurrentMusicFromUserGesture());
     if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -173,6 +172,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       compact: false,
                                       onContinue: _continueRun,
                                       onNewRun: _startNewRun,
+                                      onTutorial: _startTutorial,
                                     ),
                                   ),
                                 ],
@@ -193,6 +193,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 compact: compact,
                                 onContinue: _continueRun,
                                 onNewRun: _startNewRun,
+                                onTutorial: _startTutorial,
                               ),
                             ],
                           ],
@@ -668,6 +669,7 @@ class _MissionConsole extends StatelessWidget {
     this.compact = false,
     required this.onContinue,
     required this.onNewRun,
+    required this.onTutorial,
   });
 
   final int nextRound;
@@ -678,6 +680,7 @@ class _MissionConsole extends StatelessWidget {
   final bool compact;
   final VoidCallback onContinue;
   final VoidCallback onNewRun;
+  final VoidCallback onTutorial;
 
   @override
   Widget build(BuildContext context) {
@@ -737,19 +740,7 @@ class _MissionConsole extends StatelessWidget {
               label: 'Tutorial',
               icon: Icons.school,
               color: AppPalette.textSecondary,
-              onPressed: () {
-                unawaited(
-                  AudioService.instance.playCurrentMusicFromUserGesture(),
-                );
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => GameScreen(
-                      persistence: PersistenceService.instance,
-                      tutorial: true,
-                    ),
-                  ),
-                );
-              },
+              onPressed: onTutorial,
             ),
             _MissionActionButton(
               label: 'Gold Shop',

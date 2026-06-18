@@ -74,8 +74,15 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
 
   void _onTutorialComplete() {
     if (!_game.tutorialComplete.value) return;
-    widget.persistence.setTutorialSeen(true);
-    if (mounted) Navigator.of(context).maybePop();
+    unawaited(_finishTutorial());
+  }
+
+  Future<void> _finishTutorial() async {
+    await widget.persistence.setTutorialSeen(true);
+    await widget.persistence.clearCheckpoint();
+    if (!mounted) return;
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) navigator.pop();
   }
 
   void _onPhaseChanged() {
@@ -88,9 +95,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
 
   Future<void> _retryRun() async {
     await widget.persistence.clearCheckpoint();
-    unawaited(
-      AudioService.instance.playCurrentMusicFromUserGesture(),
-    );
+    unawaited(AudioService.instance.playCurrentMusicFromUserGesture());
     if (!mounted) return;
     await Navigator.of(context).pushReplacement(
       MaterialPageRoute(
