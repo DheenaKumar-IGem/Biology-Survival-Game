@@ -6,10 +6,23 @@ import '../../theme/palette.dart';
 import '../../theme/typography.dart';
 
 class LoadingScreen extends StatefulWidget {
-  const LoadingScreen({super.key, this.failed = false, this.errorText});
+  const LoadingScreen({
+    super.key,
+    this.failed = false,
+    this.errorText,
+    this.title = 'PDAC IMMUNE DEFENSE',
+    this.protocolLabel = 'BIOMARKER PROTOCOL',
+    this.footerText =
+        'Early detection research is the mission. Your immune defense is coming online.',
+    this.stages = loadingStages,
+  });
 
   final bool failed;
   final String? errorText;
+  final String title;
+  final String protocolLabel;
+  final String footerText;
+  final List<LoadingStageInfo> stages;
 
   @override
   State<LoadingScreen> createState() => _LoadingScreenState();
@@ -47,7 +60,7 @@ class _LoadingScreenState extends State<LoadingScreen>
             animation: _controller,
             builder: (context, _) {
               final t = _controller.value;
-              final stage = loadingStageForProgress(t);
+              final stage = loadingStageForProgress(t, stages: widget.stages);
 
               return Stack(
                 children: [
@@ -82,7 +95,7 @@ class _LoadingScreenState extends State<LoadingScreen>
                                 ),
                                 SizedBox(height: compact ? 18 : 26),
                                 Text(
-                                  'PDAC IMMUNE DEFENSE',
+                                  widget.title,
                                   style: AppTypography.displayMedium.copyWith(
                                     fontSize: compact ? 28 : 32,
                                     letterSpacing: 0,
@@ -102,18 +115,16 @@ class _LoadingScreenState extends State<LoadingScreen>
                                   textAlign: TextAlign.center,
                                 ),
                                 SizedBox(height: compact ? 18 : 24),
-                                _LoadingBar(
-                                  sweep: t,
-                                  failed: widget.failed,
-                                ),
+                                _LoadingBar(sweep: t, failed: widget.failed),
                                 SizedBox(height: compact ? 16 : 22),
                                 _LoadingBriefingPanel(
                                   stage: stage,
                                   failed: widget.failed,
+                                  protocolLabel: widget.protocolLabel,
                                 ),
                                 SizedBox(height: compact ? 14 : 22),
                                 Text(
-                                  'Early detection research is the mission. Your immune defense is coming online.',
+                                  widget.footerText,
                                   style: AppTypography.label,
                                   textAlign: TextAlign.center,
                                 ),
@@ -160,7 +171,8 @@ const loadingStages = [
   ),
   LoadingStageInfo(
     label: 'Reading saliva biomarkers',
-    briefing: 'Exploring the kind of saliva signal patterns scientists hope might one day flag PDAC early.',
+    briefing:
+        'Exploring the kind of saliva signal patterns scientists hope might one day flag PDAC early.',
     status: 'Reading',
     icon: Icons.science_outlined,
     color: AppPalette.playerCore,
@@ -181,11 +193,108 @@ const loadingStages = [
   ),
 ];
 
-LoadingStageInfo loadingStageForProgress(double progress) {
-  final stageCount = loadingStages.length;
+const tutorialLoadingStages = [
+  LoadingStageInfo(
+    label: 'Opening training arena',
+    briefing: 'Preparing safe practice targets and guided swap prompts.',
+    status: 'Opening',
+    icon: Icons.school_outlined,
+    color: AppPalette.playerCore,
+  ),
+  LoadingStageInfo(
+    label: 'Priming movement drill',
+    briefing: 'Centering the defender and setting up the first coaching beat.',
+    status: 'Priming',
+    icon: Icons.open_with,
+    color: AppPalette.innateColor,
+  ),
+  LoadingStageInfo(
+    label: 'Calibrating color match feedback',
+    briefing: 'Syncing the reticle rings for matched and mismatched shots.',
+    status: 'Syncing',
+    icon: Icons.track_changes,
+    color: AppPalette.gold,
+  ),
+  LoadingStageInfo(
+    label: 'Launching tutorial',
+    briefing: 'The training arena is almost ready.',
+    status: 'Launch',
+    icon: Icons.play_arrow,
+    color: AppPalette.cytotoxicColor,
+  ),
+];
+
+const newRunLoadingStages = [
+  LoadingStageInfo(
+    label: 'Preparing new run',
+    briefing: 'Clearing stale checkpoint data and opening a fresh mission.',
+    status: 'Preparing',
+    icon: Icons.restart_alt,
+    color: AppPalette.healthGood,
+  ),
+  LoadingStageInfo(
+    label: 'Building loadout station',
+    briefing: 'Bringing your immune tools online before the first wave.',
+    status: 'Loadout',
+    icon: Icons.inventory_2_outlined,
+    color: AppPalette.playerCore,
+  ),
+  LoadingStageInfo(
+    label: 'Mapping first biome',
+    briefing: 'Tracing the starting arena and its saliva-signal context.',
+    status: 'Mapping',
+    icon: Icons.map_outlined,
+    color: AppPalette.gold,
+  ),
+  LoadingStageInfo(
+    label: 'Starting run',
+    briefing: 'Final checks are passing control to the mission.',
+    status: 'Start',
+    icon: Icons.play_arrow,
+    color: AppPalette.cytotoxicColor,
+  ),
+];
+
+const continueRunLoadingStages = [
+  LoadingStageInfo(
+    label: 'Recovering saved run',
+    briefing: 'Reading the checkpoint and restoring round progress.',
+    status: 'Reading',
+    icon: Icons.history,
+    color: AppPalette.gold,
+  ),
+  LoadingStageInfo(
+    label: 'Restoring defenses',
+    briefing: 'Re-equipping your saved weapons, upgrades, and health state.',
+    status: 'Restoring',
+    icon: Icons.shield_outlined,
+    color: AppPalette.playerCore,
+  ),
+  LoadingStageInfo(
+    label: 'Rebuilding arena',
+    briefing: 'Reopening the biome at the saved round boundary.',
+    status: 'Rebuild',
+    icon: Icons.radar_outlined,
+    color: AppPalette.innateColor,
+  ),
+  LoadingStageInfo(
+    label: 'Continuing run',
+    briefing: 'The checkpoint is ready.',
+    status: 'Continue',
+    icon: Icons.play_arrow,
+    color: AppPalette.cytotoxicColor,
+  ),
+];
+
+LoadingStageInfo loadingStageForProgress(
+  double progress, {
+  List<LoadingStageInfo> stages = loadingStages,
+}) {
+  final activeStages = stages.isEmpty ? loadingStages : stages;
+  final stageCount = activeStages.length;
   final normalized = _normalizedLoadingValue(progress);
   final index = min((normalized * stageCount).floor(), stageCount - 1);
-  return loadingStages[index];
+  return activeStages[index];
 }
 
 double loadingProgressValue(double controllerValue, {bool failed = false}) {
@@ -203,10 +312,12 @@ class _LoadingBriefingPanel extends StatelessWidget {
   const _LoadingBriefingPanel({
     required this.stage,
     required this.failed,
+    required this.protocolLabel,
   });
 
   final LoadingStageInfo stage;
   final bool failed;
+  final String protocolLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -230,7 +341,7 @@ class _LoadingBriefingPanel extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'BIOMARKER PROTOCOL',
+                    protocolLabel,
                     style: AppTypography.label.copyWith(color: accent),
                   ),
                 ),

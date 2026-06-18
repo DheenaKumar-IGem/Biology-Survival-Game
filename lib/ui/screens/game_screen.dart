@@ -21,6 +21,7 @@ import '../overlays/resistance_alert_overlay.dart';
 import '../overlays/round_end_upgrade_overlay.dart';
 import '../overlays/round_intro_overlay.dart';
 import '../overlays/victory_overlay.dart';
+import 'loading_screen.dart';
 
 /// Hosts the [PdacGame] [GameWidget] plus all gameplay overlays.
 ///
@@ -58,6 +59,30 @@ const _phaseOverlayNames = <RoundPhase, String>{
 
 class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   late final PdacGame _game;
+
+  bool get _resumingRun => widget.checkpoint != null;
+
+  String get _loadingProtocolLabel {
+    if (widget.tutorial) return 'TRAINING PROTOCOL';
+    if (_resumingRun) return 'CHECKPOINT RESTORE';
+    return 'RUN DEPLOYMENT';
+  }
+
+  String get _loadingFooterText {
+    if (widget.tutorial) {
+      return 'The tutorial is opening with guided practice and safe targets.';
+    }
+    if (_resumingRun) {
+      return 'Your saved run is being restored at the next safe round.';
+    }
+    return 'A fresh run is loading with your immune defenses ready.';
+  }
+
+  List<LoadingStageInfo> get _loadingStages {
+    if (widget.tutorial) return tutorialLoadingStages;
+    if (_resumingRun) return continueRunLoadingStages;
+    return newRunLoadingStages;
+  }
 
   @override
   void initState() {
@@ -144,6 +169,18 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final gameWidget = GameWidget<PdacGame>(
       game: _game,
+      loadingBuilder: (_) => LoadingScreen(
+        protocolLabel: _loadingProtocolLabel,
+        footerText: _loadingFooterText,
+        stages: _loadingStages,
+      ),
+      errorBuilder: (_, _) => LoadingScreen(
+        failed: true,
+        errorText: 'Game startup failed. Return home and try again.',
+        protocolLabel: _loadingProtocolLabel,
+        footerText: 'The arena could not finish initializing.',
+        stages: _loadingStages,
+      ),
       initialActiveOverlays: const [
         'hud',
         'roundIntro',

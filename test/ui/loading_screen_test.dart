@@ -12,6 +12,21 @@ void main() {
     expect(loadingStageForProgress(1).label, 'Calibrating defenses');
   });
 
+  test('loading stage helper supports launch-specific stages', () {
+    expect(
+      loadingStageForProgress(0, stages: tutorialLoadingStages).label,
+      'Opening training arena',
+    );
+    expect(
+      loadingStageForProgress(0.5, stages: newRunLoadingStages).label,
+      'Mapping first biome',
+    );
+    expect(
+      loadingStageForProgress(1, stages: continueRunLoadingStages).label,
+      'Continuing run',
+    );
+  });
+
   test('loading progress helper keeps values bounded', () {
     expect(loadingProgressValue(-1), 0.18);
     expect(loadingProgressValue(0), 0.18);
@@ -45,5 +60,29 @@ void main() {
     expect(find.text('Startup failed.'), findsOneWidget);
     expect(find.text('Startup check interrupted'), findsOneWidget);
     expect(find.text('SALIVA ASSAY: halted'), findsOneWidget);
+  });
+
+  testWidgets('loading screen renders launch-specific protocol copy', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: LoadingScreen(
+          protocolLabel: 'TRAINING PROTOCOL',
+          footerText:
+              'The tutorial is opening with guided practice and safe targets.',
+          stages: tutorialLoadingStages,
+        ),
+      ),
+    );
+
+    expect(find.text('TRAINING PROTOCOL'), findsOneWidget);
+    expect(find.text('Opening training arena'), findsWidgets);
+    expect(
+      find.text(
+        'The tutorial is opening with guided practice and safe targets.',
+      ),
+      findsOneWidget,
+    );
   });
 }
